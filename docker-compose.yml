@@ -1,0 +1,97 @@
+# =============================================================================
+# Sentinel Platform - Docker Compose
+# =============================================================================
+# Quick start:  docker compose up -d
+# With Ollama:  docker compose --profile llm up -d
+# With ML API:  docker compose --profile ml up -d
+# Full stack:   docker compose --profile llm --profile ml up -d
+# Logs:         docker compose logs -f sentinel
+# =============================================================================
+
+services:
+  sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinel-security
+    env_file:
+      - .env
+    ports:
+      - "${SENTINEL_PORT:-5000}:5000"
+    environment:
+      # --- Core ---
+      SENTINEL_ENV: production
+      SENTINEL_WORKERS: "4"
+      # --- Shield LLM ---
+      SHIELD_LLM_PROVIDER: "${SHIELD_LLM_PROVIDER:-ollama}"
+      SHIELD_LLM_MODEL: "${SHIELD_LLM_MODEL:-llama3}"
+      # --- Shield Thresholds ---
+      SHIELD_ML_HIGH: "${SHIELD_ML_HIGH:-0.85}"
+      SHIELD_ML_LOW: "${SHIELD_ML_LOW:-0.30}"
+      SHIELD_RATE_LIMIT: "${SHIELD_RATE_LIMIT:-30}"
+      # --- Anomaly Detection API ---
+      ANOMALY_API_URL: http://anomaly-api:8000
+      ANOMALY_API_TIMEOUT: "0.5"
+      # --- API Key ---
+      SENTINEL_API_KEY: "${SENTINEL_API_KEY:-}"
+      # --- CEF Logging ---
+      CEF_OUTPUT: "${CEF_OUTPUT:-file}"
+      CEF_FILE: "/app/data/sentinel_cef.log"
+      # --- Ollama ---
+      OLLAMA_HOST: "${OLLAMA_HOST:-http://ollama:11434}"
+    volumes:
+      - sentinel-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Ollama LLM sidecar (optional: docker compose --profile llm up)
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:0.6.2
+    container_name: sentinel-ollama
+    profiles:
+      - llm
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          memory: 4G
+
+  # ---------------------------------------------------------------------------
+  # Anomaly Detection ML API (optional: docker compose --profile ml up)
+  # ---------------------------------------------------------------------------
+  anomaly-api:
+    build:
+      context: ./anomaly-detection
+      dockerfile: docker/Dockerfile
+    container_name: sentinel-anomaly-api
+    profiles:
+      - ml
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./anomaly-detection/core/anomaly_outputs:/app/anomaly_outputs
+    environment:
+      MODEL_DIR: /app/anomaly_outputs
+      CORS_ORIGINS: "http://sentinel:5000,http://localhost:5000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; r=requests.get('http://localhost:8000/health'); exit(0 if r.status_code==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sentinel-data:
+  ollama-models:
