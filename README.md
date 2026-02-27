@@ -58,6 +58,47 @@ handler = SentinelCallbackHandler(shield_url="http://localhost:5000")
 chain.invoke({"input": query}, config={"callbacks": [handler]})
 ```
 
+## MCP Server
+
+Sentinel ships an stdio-based [MCP](https://modelcontextprotocol.io) server so
+LLM clients (Claude Desktop, Cursor, etc.) can call Sentinel as a tool.
+
+```bash
+pip install "sentinel[mcp]"
+sentinel-mcp              # starts stdio server
+```
+
+Three tools are exposed: `analyze_message`, `scan_output`, `validate_tool_call`.
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "sentinel": {
+      "command": "sentinel-mcp"
+    }
+  }
+}
+```
+
+### Claude Code
+
+Add to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "sentinel": {
+      "command": "sentinel-mcp",
+      "type": "stdio"
+    }
+  }
+}
+```
+
 ## Docker
 
 ```bash

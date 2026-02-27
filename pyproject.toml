@@ -115,6 +115,7 @@ all = [
     "llama-index-core>=0.10.0",
     "fastapi>=0.100.0",
     "uvicorn>=0.20.0",
+    "mcp>=1.0.0,<2",
 ]
 gauntlet = [
     "gauntlet>=1.0",
@@ -129,6 +130,9 @@ drift = [
 loadtest = [
     "locust>=2.20.0",
 ]
+mcp = [
+    "mcp>=1.0.0,<2",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -137,6 +141,9 @@ dev = [
     "scipy>=1.10.0",
     "locust>=2.20.0",
 ]
+
+[project.scripts]
+sentinel-mcp = "sentinel.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/canthaxit/sentinel"
