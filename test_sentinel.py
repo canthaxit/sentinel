@@ -43,7 +43,7 @@ class TestSanitizer:
     def test_csv_formula_prevention(self):
         text, sans = sanitize_input("=cmd|'/C calc'!A1")
         assert not text.startswith("=")
-        assert "csv_formula_prefix_removed" in sans
+        assert "csv_formula_prefix_neutralized" in sans
 
     def test_event_handler_removal(self):
         text, sans = sanitize_input('text onclick="alert(1)" more')

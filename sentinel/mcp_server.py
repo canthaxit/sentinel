@@ -59,7 +59,7 @@ _init_lock = threading.Lock()
 
 
 def _get_shield():
-    """Return or create a singleton Shield(fail_open=True)."""
+    """Return or create a singleton Shield(fail_open=False)."""
     global _shield
     if _shield is not None:
         return _shield
@@ -67,8 +67,8 @@ def _get_shield():
         if _shield is not None:
             return _shield
         from sentinel import Shield
-        _shield = Shield(fail_open=True)
-        log.info("Shield singleton initialised (fail_open=True)")
+        _shield = Shield(fail_open=False)
+        log.info("Shield singleton initialised (fail_open=False)")
         return _shield
 
 
@@ -104,6 +104,9 @@ mcp = FastMCP(
 # ---- tools ----
 
 
+_MCP_MAX_INPUT_LENGTH = 10000
+
+
 @mcp.tool()
 def analyze_message(message: str, session_id: str = "mcp_default") -> dict:
     """Analyze a user message for prompt injection, jailbreak, or adversarial attacks.
@@ -115,6 +118,13 @@ def analyze_message(message: str, session_id: str = "mcp_default") -> dict:
     Returns:
         dict with verdict, ml_score, detection_method, threat_mapping, etc.
     """
+    if len(message) > _MCP_MAX_INPUT_LENGTH:
+        return {
+            "verdict": "MALICIOUS",
+            "blocked": True,
+            "detection_method": "input_length_exceeded",
+            "error": f"Input exceeds {_MCP_MAX_INPUT_LENGTH} character limit",
+        }
     shield = _get_shield()
     result = shield.analyze(message, session_id=session_id)
     return result.to_dict()

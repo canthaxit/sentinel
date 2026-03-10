@@ -26,6 +26,7 @@ import random
 import string
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -290,11 +291,13 @@ class HoneyToolRegistry:
             tools. Default True.
     """
 
+    _MAX_TRIGGERS = 10000
+
     def __init__(self, register_defaults: bool = True):
         self._tools: Dict[str, HoneyToolDef] = {}
         self._response_generators: Dict[str, Any] = {}
         self._lock = threading.RLock()
-        self._triggers: List[dict] = []
+        self._triggers: deque = deque(maxlen=self._MAX_TRIGGERS)
 
         if register_defaults:
             for tool in _DEFAULT_HONEY_TOOLS:
@@ -389,7 +392,8 @@ class HoneyToolRegistry:
     def get_triggers(self, limit: int = 100) -> List[dict]:
         """Return recent honey tool triggers."""
         with self._lock:
-            return list(self._triggers[-limit:])
+            triggers = list(self._triggers)
+            return triggers[-limit:] if limit < len(triggers) else triggers
 
     @property
     def tool_count(self) -> int:

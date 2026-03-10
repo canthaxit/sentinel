@@ -334,6 +334,16 @@ class DriftMonitor:
             log.warning("numpy/scipy not installed; drift monitoring disabled")
             return False
         resolved = pathlib.Path(path).resolve()
+        # Validate path is within expected directories (prevent arbitrary file reads)
+        import tempfile
+        _allowed_parents = [
+            pathlib.Path.cwd().resolve(),
+            pathlib.Path(os.getenv("SENTINEL_DATA_DIR", "/app/data")).resolve(),
+            pathlib.Path(tempfile.gettempdir()).resolve(),
+        ]
+        if not any(str(resolved).startswith(str(p)) for p in _allowed_parents):
+            log.warning("Drift reference path %s is outside allowed directories", resolved)
+            return False
         if not resolved.exists():
             return False
         if resolved.stat().st_size > 50 * 1024 * 1024:

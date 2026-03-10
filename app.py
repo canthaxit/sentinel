@@ -260,11 +260,7 @@ HTML_CHAT = """
             aiBubble.className = 'flex items-start';
             const aiInner = document.createElement('div');
             aiInner.className = 'bg-blue-100 text-blue-900 p-3 rounded-lg rounded-tl-none max-w-xs text-sm shadow-sm prose';
-            if (data.contains_honey_token) {
-                aiInner.innerHTML = data.response;
-            } else {
-                aiInner.textContent = data.response;
-            }
+            aiInner.textContent = data.response;
             aiBubble.appendChild(aiInner);
             chatBox.appendChild(aiBubble);
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -468,12 +464,14 @@ def generate_dynamic_decoy(user_input):
     """
     Analyzes the attack vector and generates a persona.
     """
+    # Sanitize attacker input before embedding in LLM prompt to prevent
+    # prompt injection of the decoy generation pipeline
     safe_input = re.sub(r'[^\w\s.,!?]', '', user_input[:200])
     design_prompt = (
-        f"Analyze this attack string: '{safe_input}'. "
         "Create a brief System Prompt for a DECOY persona (a confused employee) "
-        "who would be the most vulnerable target for this request. "
-        "Also invent a fake file name (like .pdf or .xlsx) that they might offer as 'proof'."
+        "who would be the most vulnerable target for a social engineering request. "
+        "The attack category is: credential extraction / privilege escalation. "
+        "Also invent a fake file name (like .pdf or .xlsx) that they might offer as 'proof'. "
         "Return format: 'PERSONA_PROMPT | FAKE_FILENAME'"
     )
 
@@ -528,8 +526,21 @@ def log_interaction(user_input, verdict, persona, response, honey_clicked=False,
             logs = []
 
         logs.append(entry)
-        with open(LOG_FILE, "w") as f:
+        # Write with restricted permissions (owner-only)
+        fd = os.open(LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
             json.dump(logs, f, indent=4)
+
+def _is_valid_session_id(sid: str) -> bool:
+    """Validate that a session ID looks like a server-generated UUID."""
+    if not sid or len(sid) != 36:
+        return False
+    try:
+        uuid.UUID(sid)
+        return True
+    except ValueError:
+        return False
+
 
 # --- ROUTES ---
 
@@ -610,8 +621,10 @@ def chat_api():
             "contains_honey_token": False
         })
 
-    # Extract/create session
-    session_id = request.cookies.get("sentinel_session", str(uuid.uuid4()))
+    # Generate session ID server-side only (prevent session fixation)
+    session_id = request.cookies.get("sentinel_session")
+    if not session_id or not _is_valid_session_id(session_id):
+        session_id = str(uuid.uuid4())
     source_ip = request.remote_addr or "127.0.0.1"
 
     # Get ensemble verdict (includes pre-filter blocking)
@@ -733,7 +746,7 @@ def chat_api():
         "llm_verdict": llm_verdict,
     })
     response.set_cookie("sentinel_session", session_id, max_age=3600,
-                        httponly=True, samesite='Lax',
+                        httponly=True, samesite='Strict',
                         secure=BEHIND_PROXY or request.is_secure)
     return response
 

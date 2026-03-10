@@ -131,7 +131,7 @@ class TestTenantManager:
         tenant, key = mgr.create_tenant("t1", "Acme")
         # The stored hash should NOT equal the plaintext key
         assert tenant.api_key_hash != key
-        assert tenant.api_key_hash == _hash_key(key)
+        assert tenant.api_key_hash == _hash_key(key, tenant.api_key_salt)
 
     def test_thread_safety(self):
         mgr = TenantManager()
@@ -438,13 +438,13 @@ class TestAuthMiddleware:
             resp = c.get("/protected", headers={"Authorization": f"Basic {creds}"})
             assert resp.status_code == 200
 
-    def test_no_managers_open_access(self):
-        """Backward compatible: no managers = no auth required."""
+    def test_no_managers_denies_by_default(self):
+        """Secure default: no managers configured = auth denied."""
         app = self._make_app()
 
         with app.test_client() as c:
             resp = c.get("/protected")
-            assert resp.status_code == 200
+            assert resp.status_code == 401
 
     def test_tenant_scoped_user(self):
         """Basic auth user with tenant_id resolves both user and tenant."""

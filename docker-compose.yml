@@ -58,9 +58,11 @@ services:
     profiles:
       - llm
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama-models:/root/.ollama
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     deploy:
       resources:
@@ -78,7 +80,7 @@ services:
     profiles:
       - ml
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./anomaly-detection/core/anomaly_outputs:/app/anomaly_outputs
     environment:

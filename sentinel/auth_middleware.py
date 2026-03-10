@@ -89,9 +89,10 @@ def require_auth(
                 except (ValueError, TypeError, UnicodeDecodeError):
                     pass  # Malformed Basic auth header - fall through to 401
 
-            # No managers configured = open access (backward compatible)
+            # No managers configured = deny by default (secure default)
             if tenant_manager is None and rbac_manager is None:
-                return f(*args, **kwargs)
+                log.warning("require_auth called with no managers configured -- denying request")
+                return jsonify({"error": "Authentication not configured"}), 401
 
             if not authenticated:
                 return jsonify({"error": "Unauthorized"}), 401

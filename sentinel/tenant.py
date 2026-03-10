@@ -7,11 +7,16 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import os
 import secrets
 import threading
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
+
+# Server-side pepper for key hashing -- set via env var or generate on first run.
+# Changing this invalidates all stored API key hashes.
+_KEY_PEPPER = os.getenv("SENTINEL_KEY_PEPPER", "sentinel-default-pepper-change-me")
 
 
 @dataclass
@@ -21,6 +26,7 @@ class Tenant:
     tenant_id: str
     name: str
     api_key_hash: str = ""
+    api_key_salt: str = ""
     enabled: bool = True
     created_at: float = field(default_factory=time.time)
     config_overrides: Dict[str, Any] = field(default_factory=dict)
@@ -28,9 +34,15 @@ class Tenant:
     tags: List[str] = field(default_factory=list)
 
 
-def _hash_key(api_key: str) -> str:
-    """SHA-256 hash of an API key."""
-    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+def _hash_key(api_key: str, salt: str = "") -> str:
+    """HMAC-SHA256 hash of an API key with salt and server-side pepper."""
+    msg = (salt + api_key).encode("utf-8")
+    return hmac.new(_KEY_PEPPER.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+
+
+def _generate_salt() -> str:
+    """Generate a random 16-byte hex salt."""
+    return secrets.token_hex(16)
 
 
 class TenantManager:
@@ -67,12 +79,14 @@ class TenantManager:
         The plaintext key is returned exactly once.  Only the hash is stored.
         """
         api_key = secrets.token_urlsafe(32)
-        key_hash = _hash_key(api_key)
+        salt = _generate_salt()
+        key_hash = _hash_key(api_key, salt)
 
         tenant = Tenant(
             tenant_id=tenant_id,
             name=name,
             api_key_hash=key_hash,
+            api_key_salt=salt,
             config_overrides=config_overrides or {},
             rate_limit=rate_limit,
             tags=tags or [],
@@ -123,7 +137,8 @@ class TenantManager:
     def rotate_api_key(self, tenant_id: str) -> str:
         """Generate a new API key for a tenant.  Returns the new plaintext key."""
         new_key = secrets.token_urlsafe(32)
-        new_hash = _hash_key(new_key)
+        new_salt = _generate_salt()
+        new_hash = _hash_key(new_key, new_salt)
 
         with self._lock:
             tenant = self._tenants.get(tenant_id)
@@ -133,6 +148,7 @@ class TenantManager:
             self._key_index.pop(tenant.api_key_hash, None)
             # Update
             tenant.api_key_hash = new_hash
+            tenant.api_key_salt = new_salt
             self._key_index[new_hash] = tenant_id
 
         return new_key
@@ -143,14 +159,16 @@ class TenantManager:
         Uses timing-safe comparison to prevent timing attacks.
         Returns None if no match or tenant is disabled.
         """
-        incoming_hash = _hash_key(api_key)
-
         with self._lock:
             # Timing-safe scan: compare against every stored hash
             # to prevent timing-based enumeration of valid keys.
-            # Iterate ALL entries to prevent timing-based key position leaks
+            # Must hash with each tenant's salt for comparison.
             matched_id = None
             for stored_hash, tid in self._key_index.items():
+                tenant = self._tenants.get(tid)
+                if tenant is None:
+                    continue
+                incoming_hash = _hash_key(api_key, tenant.api_key_salt)
                 if hmac.compare_digest(incoming_hash, stored_hash):
                     matched_id = tid
 

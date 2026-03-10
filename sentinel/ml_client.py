@@ -19,10 +19,29 @@ class MLClient:
     Returns None on failure for graceful degradation to LLM-only mode.
     """
 
+    # Blocked URL patterns to prevent SSRF
+    _BLOCKED_HOSTS = {"169.254.169.254", "metadata.google.internal", "[fd00::"}
+
     def __init__(self, api_url=None, timeout=None):
         self.api_url = api_url or config.ANOMALY_API_URL
         self.timeout = timeout or config.ANOMALY_API_TIMEOUT
         self._session = requests.Session()
+        self._validate_url()
+
+    def _validate_url(self):
+        """Validate that the ML API URL is not pointing at a dangerous target."""
+        if not self.api_url:
+            return
+        from urllib.parse import urlparse
+        parsed = urlparse(self.api_url)
+        if parsed.scheme not in ("http", "https"):
+            log.warning("ANOMALY_API_URL has invalid scheme %r, disabling", parsed.scheme)
+            self.api_url = ""
+            return
+        host = parsed.hostname or ""
+        if host in self._BLOCKED_HOSTS or host.startswith("169.254."):
+            log.warning("ANOMALY_API_URL points to blocked host %r, disabling", host)
+            self.api_url = ""
 
     def score(self, user_input, session, source_ip):
         """
