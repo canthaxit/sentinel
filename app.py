@@ -1,4 +1,5 @@
 import os
+import logging
 
 try:
     from dotenv import load_dotenv
@@ -14,6 +15,8 @@ import threading
 import hashlib
 import hmac
 import functools
+
+log = logging.getLogger("sentinel.app")
 from flask import Flask, render_template_string, request, jsonify, abort, Response
 from markupsafe import escape
 import requests
@@ -40,11 +43,7 @@ BEHIND_PROXY = os.getenv("SENTINEL_BEHIND_PROXY", "").lower() in ("1", "true", "
 # Security hardening
 API_KEY = os.getenv("SENTINEL_API_KEY", "")  # Empty = auth disabled (dev mode)
 if not API_KEY:
-    print("=" * 60)
-    print("WARNING: SENTINEL_API_KEY is not set!")
-    print("All authenticated endpoints are publicly accessible.")
-    print("Set SENTINEL_API_KEY environment variable for production.")
-    print("=" * 60)
+    log.warning("SENTINEL_API_KEY is not set -- all authenticated endpoints are publicly accessible")
 _cors_env = os.getenv("CORS_ORIGINS", "")
 CORS_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else []
 
@@ -74,7 +73,7 @@ _storage = _create_storage_backend(backend_type="sqlite", db_path="sentinel.db")
 try:
     _llm_judge = create_llm_judge()
 except Exception as e:
-    print(f"[SHIELD] LLM provider init error: {e}, falling back to default Ollama")
+    log.warning("LLM provider init error: %s, falling back to default Ollama", e)
     _llm_judge = LLMJudge()
 
 _shield = Shield(llm_judge=_llm_judge, storage_backend=_storage)
@@ -83,10 +82,6 @@ _shield.start()  # Start session cleanup background thread
 # --- CEF LOGGER (SIEM integration) ---
 CEF_ENABLED = os.getenv("CEF_ENABLED", "").lower() in ("1", "true", "yes")
 _cef_logger = CEFLogger() if CEF_ENABLED else None
-
-# --- TERMINAL COLORS ---
-RED = "\033[91m"
-RESET = "\033[0m"
 
 # --- FLASK APP ---
 app = Flask(__name__)
@@ -99,10 +94,10 @@ try:
     _set_ti_storage(_storage)
     app.register_blueprint(get_threat_intel_blueprint(), url_prefix='/threat-intel')
     _threat_intel_available = True
-    print("[THREAT-INTEL] Module loaded, endpoints at /threat-intel/ (unified storage)")
+    log.info("Threat intel module loaded, endpoints at /threat-intel/")
 except ImportError as e:
     _threat_intel_available = False
-    print(f"[THREAT-INTEL] Module not available: {e}")
+    log.info("Threat intel module not available: %s", e)
 
 # --- RED TEAM ---
 # Red team testing is provided by gauntlet (standalone package).
@@ -111,7 +106,7 @@ except ImportError as e:
 
 # --- SHIELD API ---
 app.register_blueprint(create_shield_blueprint(_shield), url_prefix='/shield')
-print("[SHIELD] Module loaded, endpoints at /shield/")
+log.info("Shield module loaded, endpoints at /shield/")
 
 
 @app.after_request
@@ -481,7 +476,7 @@ def generate_dynamic_decoy(user_input):
             options=OLLAMA_OPTIONS_DECOY,
         )
     except Exception as e:
-        print(f"LLM Error (decoy generation): {e}")
+        log.error("LLM error (decoy generation): %s", e)
         content = "You are a confused office worker who is not sure how things work. | confidential_report.pdf"
 
     # Simple parsing (robustness would need improvement for prod)
@@ -615,7 +610,7 @@ def chat_api():
 
     # If input was heavily sanitized and now empty, reject it
     if sanitizations and (not user_input or not user_input.strip()):
-        print(f"[SECURITY] Rejected empty input after sanitization: {original_input[:50]}")
+        log.warning("Rejected empty input after sanitization: %s", original_input[:50])
         return jsonify({
             "response": "Your message contains prohibited content and has been rejected.",
             "contains_honey_token": False
@@ -663,7 +658,7 @@ def chat_api():
             )
             response_text = _sanitize_decoy_response(raw_response, honey_link, fake_filename)
         except Exception as e:
-            print(f"LLM Error (decoy chat): {e}")
+            log.error("LLM error (decoy chat): %s", e)
             response_text = "I'm sorry, the system is currently experiencing issues. Please try again later."
 
         persona_name = "Decoy (Dynamic)"
@@ -691,7 +686,7 @@ def chat_api():
                     sanitizations=sanitizations,
                 )
             except Exception as e:
-                print(f"[THREAT-INTEL] Hook error: {e}")
+                log.error("Threat intel hook error: %s", e)
 
     else:
         # Standard Assistant
@@ -702,7 +697,7 @@ def chat_api():
                 options=OLLAMA_OPTIONS,
             )
         except Exception as e:
-            print(f"LLM Error (assistant chat): {e}")
+            log.error("LLM error (assistant chat): %s", e)
             response_text = "I'm sorry, the system is currently experiencing issues. Please try again later."
 
         log_interaction(user_input, "SAFE", persona_name, response_text,
@@ -756,7 +751,7 @@ def honey_token_trigger(token_id):
     if not re.match(r'^[a-zA-Z0-9_-]+$', token_id):
         abort(400)
     # This route is the TRAP. If anyone visits this, they clicked the link.
-    print(f"{RED}[!!!] HONEY TOKEN TRIGGERED: {token_id}{RESET}")
+    log.critical("HONEY TOKEN TRIGGERED: %s from %s", token_id, request.remote_addr)
 
     # Log the specific compromise
     log_interaction("CLICKED_LINK", "CRITICAL_COMPROMISE", "System_Trap", f"Attacker accessed honeyfile: {token_id}", honey_clicked=True)
@@ -893,38 +888,40 @@ WORKER_THREADS = int(os.getenv("SENTINEL_THREADS", "4"))
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     from sentinel import __version__ as shield_version
     from sentinel import config as shield_config
-    print("--- SENTINEL PLATFORM STARTING ---")
-    print(f"Storage: SQLite unified ({_storage.db_path})")
-    print(f"User Interface: http://localhost:{LISTEN_PORT}")
-    print(f"Command Center: http://localhost:{LISTEN_PORT}/dashboard")
-    print(f"Shield API: http://localhost:{LISTEN_PORT}/shield/ (v{shield_version})")
-    print(f"Shield Dashboard: http://localhost:{LISTEN_PORT}/shield/dashboard")
-    print(f"LLM Provider: {shield_config.LLM_PROVIDER} / {shield_config.LLM_MODEL}")
+    log.info("--- SENTINEL PLATFORM STARTING ---")
+    log.info("Storage: SQLite unified (%s)", _storage.db_path)
+    log.info("UI: http://localhost:%s  Dashboard: http://localhost:%s/dashboard", LISTEN_PORT, LISTEN_PORT)
+    log.info("Shield API: http://localhost:%s/shield/ (v%s)", LISTEN_PORT, shield_version)
+    log.info("LLM Provider: %s / %s", shield_config.LLM_PROVIDER, shield_config.LLM_MODEL)
     if API_KEY:
-        print("API key auth: ENABLED (dashboard/sessions require X-API-Key header)")
+        log.info("API key auth: ENABLED")
     else:
-        print("API key auth: DISABLED (set SENTINEL_API_KEY env var to enable)")
-    print(f"Rate limit: {shield_config.RATE_LIMIT_PER_MINUTE} requests/minute per IP")
-    print(f"Session TTL: {shield_config.SESSION_TTL_SECONDS}s, max sessions: {shield_config.SESSION_MAX_COUNT}")
+        log.warning("API key auth: DISABLED (set SENTINEL_API_KEY env var to enable)")
+    log.info("Rate limit: %s req/min | Session TTL: %ss | Max sessions: %s",
+             shield_config.RATE_LIMIT_PER_MINUTE, shield_config.SESSION_TTL_SECONDS, shield_config.SESSION_MAX_COUNT)
     if _threat_intel_available:
-        print(f"Threat Intel: http://localhost:{LISTEN_PORT}/threat-intel/dashboard")
+        log.info("Threat Intel: http://localhost:%s/threat-intel/dashboard", LISTEN_PORT)
     if CEF_ENABLED:
-        print(f"CEF Logging: ENABLED (output={_cef_logger.output}, file={_cef_logger.file_path})")
+        log.info("CEF Logging: ENABLED (output=%s, file=%s)", _cef_logger.output, _cef_logger.file_path)
     else:
-        print("CEF Logging: DISABLED (set CEF_ENABLED=true to enable)")
+        log.info("CEF Logging: DISABLED")
 
     if PRODUCTION_MODE:
         try:
             from waitress import serve
-            print(f"Server: waitress (production) - {WORKER_THREADS} threads")
-            print(f"Listening: {LISTEN_HOST}:{LISTEN_PORT}")
+            log.info("Server: waitress (production) - %s threads on %s:%s", WORKER_THREADS, LISTEN_HOST, LISTEN_PORT)
             serve(app, host=LISTEN_HOST, port=LISTEN_PORT, threads=WORKER_THREADS)
         except ImportError:
-            print("WARNING: waitress not installed, falling back to Flask dev server")
-            print("Install with: pip install waitress")
+            log.warning("waitress not installed, falling back to Flask dev server (pip install waitress)")
             app.run(host=LISTEN_HOST, port=LISTEN_PORT, debug=False)
     else:
-        print("Server: Flask development (set SENTINEL_PRODUCTION=true for waitress)")
+        log.info("Server: Flask development on %s:%s", LISTEN_HOST, LISTEN_PORT)
         app.run(host=LISTEN_HOST, port=LISTEN_PORT, debug=False)

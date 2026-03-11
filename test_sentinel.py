@@ -404,7 +404,7 @@ class TestShieldIntegration:
         assert r2.detection_method == "pre_filter"
 
     def test_version(self):
-        assert __version__ == "0.1.0"
+        assert __version__ == "1.0.0"
 
 
 # --- Blueprint Tests ---
@@ -432,7 +432,7 @@ class TestBlueprint:
             assert r.status_code == 200
             data = r.get_json()
             assert data["shield"] == "healthy"
-            assert data["version"] == "0.1.0"
+            assert data["version"] == __version__
 
             # Analyze - obvious attack
             r = client.post("/shield/analyze", json={
