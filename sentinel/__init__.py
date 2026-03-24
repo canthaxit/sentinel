@@ -612,7 +612,17 @@ def create_shield_blueprint(shield=None):
 
         data = request.get_json(silent=True) or {}
         message = data.get("message", "")
-        session_id = data.get("session_id", request.cookies.get("sentinel_session", "default"))
+        # Validate session_id as UUID to prevent session fixation
+        import uuid as _uuid
+        raw_sid = data.get("session_id") or request.cookies.get("sentinel_session")
+        try:
+            if raw_sid:
+                _uuid.UUID(raw_sid)  # raises ValueError if not a valid UUID
+                session_id = raw_sid
+            else:
+                session_id = str(_uuid.uuid4())
+        except ValueError:
+            session_id = str(_uuid.uuid4())
         source_ip = request.remote_addr or "127.0.0.1"
 
         if not message or not message.strip():

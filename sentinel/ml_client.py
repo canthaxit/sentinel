@@ -4,7 +4,9 @@ Calls the Anomaly Detection API for ML-based scoring.
 """
 
 import datetime
+import ipaddress
 import logging
+import socket
 
 import requests
 
@@ -19,7 +21,7 @@ class MLClient:
     Returns None on failure for graceful degradation to LLM-only mode.
     """
 
-    # Blocked URL patterns to prevent SSRF
+    # Blocked URL patterns to prevent SSRF — cloud metadata endpoints
     _BLOCKED_HOSTS = {"169.254.169.254", "metadata.google.internal", "[fd00::"}
 
     def __init__(self, api_url=None, timeout=None):
@@ -28,8 +30,34 @@ class MLClient:
         self._session = requests.Session()
         self._validate_url()
 
+    @staticmethod
+    def _is_dangerous_ip(addr_str):
+        """Return True if *addr_str* is a loopback, private, reserved, or
+        link-local IP address that should never be the target of an outbound
+        request (SSRF protection)."""
+        try:
+            addr = ipaddress.ip_address(addr_str)
+        except ValueError:
+            return False
+        return (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_reserved
+            or addr.is_multicast
+            or addr.is_unspecified          # 0.0.0.0, ::
+        )
+
     def _validate_url(self):
-        """Validate that the ML API URL is not pointing at a dangerous target."""
+        """Validate that the ML API URL is not pointing at a dangerous target.
+
+        Blocks:
+        - Non-HTTP(S) schemes
+        - Cloud metadata endpoints (169.254.169.254, metadata.google.internal)
+        - Private / loopback / link-local IPs (127.0.0.0/8, 10.0.0.0/8,
+          172.16.0.0/12, 192.168.0.0/16, ::1, fd00::/8, 0.0.0.0)
+        - Hostnames that DNS-resolve to any of the above
+        """
         if not self.api_url:
             return
         from urllib.parse import urlparse
@@ -39,8 +67,38 @@ class MLClient:
             self.api_url = ""
             return
         host = parsed.hostname or ""
+
+        # 1. Explicit blocklist (cloud metadata endpoints)
         if host in self._BLOCKED_HOSTS or host.startswith("169.254."):
             log.warning("ANOMALY_API_URL points to blocked host %r, disabling", host)
+            self.api_url = ""
+            return
+
+        # 2. Direct IP check (covers literal IPs like 127.0.0.1, 10.0.0.1, ::1)
+        if self._is_dangerous_ip(host):
+            log.warning("ANOMALY_API_URL points to private/reserved IP %r, disabling", host)
+            self.api_url = ""
+            return
+
+        # 3. DNS resolution check — a domain name could resolve to a private IP
+        try:
+            addrinfos = socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+            for family, _type, _proto, _canonname, sockaddr in addrinfos:
+                resolved_ip = sockaddr[0]
+                if self._is_dangerous_ip(resolved_ip):
+                    log.warning(
+                        "ANOMALY_API_URL host %r resolves to private/reserved IP %s, disabling",
+                        host,
+                        resolved_ip,
+                    )
+                    self.api_url = ""
+                    return
+        except socket.gaierror:
+            log.warning("ANOMALY_API_URL host %r cannot be resolved, disabling", host)
+            self.api_url = ""
+            return
+        except OSError as exc:
+            log.warning("ANOMALY_API_URL DNS check failed for %r: %s, disabling", host, exc)
             self.api_url = ""
 
     def score(self, user_input, session, source_ip):

@@ -35,9 +35,11 @@ class Tenant:
 
 
 def _hash_key(api_key: str, salt: str = "") -> str:
-    """HMAC-SHA256 hash of an API key with salt and server-side pepper."""
+    """PBKDF2-HMAC-SHA256 hash of an API key with salt and server-side pepper (600k iterations)."""
     msg = (salt + api_key).encode("utf-8")
-    return hmac.new(_KEY_PEPPER.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+    return hashlib.pbkdf2_hmac(
+        "sha256", msg, _KEY_PEPPER.encode("utf-8"), iterations=600_000
+    ).hex()
 
 
 def _generate_salt() -> str:

@@ -32,6 +32,12 @@ except ImportError:
 # When True, the shield allows requests through on internal errors (ML/LLM down).
 # When False (default), errors result in blocking (fail closed).
 FAIL_OPEN = os.getenv("SHIELD_FAIL_OPEN", "false").lower() in ("true", "1", "yes")
+if FAIL_OPEN:
+    import logging as _log_cfg
+    _log_cfg.getLogger(__name__).critical(
+        "SHIELD_FAIL_OPEN=true -- attacks SILENTLY PASS when ML/LLM backends are "
+        "unavailable. Disable this in production: unset SHIELD_FAIL_OPEN"
+    )
 
 # --- Detection Thresholds ---
 ML_HIGH_THRESHOLD = _safe_float("SHIELD_ML_HIGH", 0.85)

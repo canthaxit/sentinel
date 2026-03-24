@@ -341,7 +341,7 @@ class DriftMonitor:
             pathlib.Path(os.getenv("SENTINEL_DATA_DIR", "/app/data")).resolve(),
             pathlib.Path(tempfile.gettempdir()).resolve(),
         ]
-        if not any(str(resolved).startswith(str(p)) for p in _allowed_parents):
+        if not any(resolved.is_relative_to(p) for p in _allowed_parents):
             log.warning("Drift reference path %s is outside allowed directories", resolved)
             return False
         if not resolved.exists():

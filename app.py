@@ -1,5 +1,6 @@
 import os
 import logging
+import secrets
 
 try:
     from dotenv import load_dotenv
@@ -40,10 +41,13 @@ from sentinel.cef_logger import CEFLogger
 LOG_FILE = "sentinel_logs.json"
 BEHIND_PROXY = os.getenv("SENTINEL_BEHIND_PROXY", "").lower() in ("1", "true", "yes")
 
-# Security hardening
-API_KEY = os.getenv("SENTINEL_API_KEY", "")  # Empty = auth disabled (dev mode)
+# Security hardening -- generate a random key if none configured (never run open)
+API_KEY = os.getenv("SENTINEL_API_KEY", "")
 if not API_KEY:
-    log.warning("SENTINEL_API_KEY is not set -- all authenticated endpoints are publicly accessible")
+    API_KEY = secrets.token_urlsafe(32)
+    os.environ["SENTINEL_API_KEY"] = API_KEY
+    log.warning("SENTINEL_API_KEY not set -- generated ephemeral key: %s", API_KEY)
+    log.warning("Set SENTINEL_API_KEY env var for a persistent key across restarts")
 _cors_env = os.getenv("CORS_ORIGINS", "")
 CORS_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else []
 
@@ -250,12 +254,22 @@ HTML_CHAT = """
             // Remove typing indicator
             typingEl.remove();
 
-            // AI Message - only allow the specific honey token HTML from the server
+            // AI Message - construct honey token link safely via DOM (no innerHTML)
             const aiBubble = document.createElement('div');
             aiBubble.className = 'flex items-start';
             const aiInner = document.createElement('div');
             aiInner.className = 'bg-blue-100 text-blue-900 p-3 rounded-lg rounded-tl-none max-w-xs text-sm shadow-sm prose';
             aiInner.textContent = data.response;
+            // Append honey token link safely via DOM APIs if present
+            if (data.contains_honey_token && data.honey_link && data.honey_filename) {
+                aiInner.appendChild(document.createTextNode(' '));
+                const link = document.createElement('a');
+                link.href = data.honey_link;
+                link.target = '_blank';
+                link.className = 'text-blue-600 underline';
+                link.textContent = data.honey_filename;
+                aiInner.appendChild(link);
+            }
             aiBubble.appendChild(aiInner);
             chatBox.appendChild(aiBubble);
             chatBox.scrollTop = chatBox.scrollHeight;
@@ -441,27 +455,23 @@ def update_session(session_id, user_input, verdict, ml_result, source_ip, saniti
     )
 
 
-def _sanitize_decoy_response(raw_response, honey_link, fake_filename):
+def _sanitize_decoy_response(raw_response):
     """
     Sanitize LLM-generated decoy response to prevent XSS.
-    Strips all HTML tags from the LLM output, then appends our controlled honey token link.
+    Strips all HTML tags and escapes special characters.
+    Honey token link is returned as separate JSON fields (not embedded in text).
     """
     # Strip all HTML tags from LLM output
     sanitized = re.sub(r'<[^>]+>', '', raw_response)
     # HTML-escape any remaining special characters
     sanitized = html.escape(sanitized)
-    # Append our controlled honey token link (server-generated, safe)
-    honey_html = f' <a href="{html.escape(honey_link)}" target="_blank" class="text-blue-600 underline">{html.escape(fake_filename)}</a>'
-    return sanitized + honey_html
+    return sanitized
 
 
 def generate_dynamic_decoy(user_input):
     """
     Analyzes the attack vector and generates a persona.
     """
-    # Sanitize attacker input before embedding in LLM prompt to prevent
-    # prompt injection of the decoy generation pipeline
-    safe_input = re.sub(r'[^\w\s.,!?]', '', user_input[:200])
     design_prompt = (
         "Create a brief System Prompt for a DECOY persona (a confused employee) "
         "who would be the most vulnerable target for a social engineering request. "
@@ -489,14 +499,28 @@ def generate_dynamic_decoy(user_input):
     return prompt.strip(), filename.strip()
 
 
+def _sanitize_for_log(text: str, max_len: int = 500) -> str:
+    """Truncate and redact sensitive patterns before writing to log files."""
+    truncated = text[:max_len]
+    # Redact credential-like key=value patterns
+    truncated = re.sub(
+        r'(?i)(password|passwd|pwd|secret|token|api[_\-]?key|bearer)\s*[:=]\s*\S+',
+        r'\1=***REDACTED***',
+        truncated,
+    )
+    # Redact long base64-like strings (>50 chars)
+    truncated = re.sub(r'[A-Za-z0-9+/=]{50,}', '***REDACTED_B64***', truncated)
+    return truncated
+
+
 def log_interaction(user_input, verdict, persona, response, honey_clicked=False,
                     ml_result=None, session_id=None, llm_verdict=None, sanitizations=None):
     entry = {
         "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "user_input": user_input[:500],
+        "user_input": _sanitize_for_log(user_input),
         "verdict": verdict,
         "persona_used": persona,
-        "response_preview": response[:100],
+        "response_preview": _sanitize_for_log(response, max_len=100),
         "honey_token_clicked": honey_clicked,
         "ml_anomaly_score": ml_result["score"] if ml_result else None,
         "ml_threat_type": ml_result["threat_type"] if ml_result else None,
@@ -633,6 +657,8 @@ def chat_api():
     response_text = ""
     persona_name = "Assistant"
     contains_honey_token = False
+    honey_link = None
+    fake_filename = None
 
     if verdict in ("MALICIOUS", "SAFE_REVIEW"):
         # 2. Dynamic Decoy
@@ -643,8 +669,7 @@ def chat_api():
 
         decoy_prompt += (
             f" You are helpful but incompetent. You should mention you have the file '{fake_filename}' "
-            f"and provide this link: <a href='{honey_link}' target='_blank' class='text-blue-600 underline'>{escape(fake_filename)}</a>. "
-            "Do not output markdown links, output the HTML anchor tag exactly."
+            "and offer to share it. Do not output any HTML or markdown links."
         )
 
         # Artificial Latency (SBIR: Realism)
@@ -656,7 +681,7 @@ def chat_api():
                 system=decoy_prompt,
                 options=OLLAMA_OPTIONS_DECOY,
             )
-            response_text = _sanitize_decoy_response(raw_response, honey_link, fake_filename)
+            response_text = _sanitize_decoy_response(raw_response)
         except Exception as e:
             log.error("LLM error (decoy chat): %s", e)
             response_text = "I'm sorry, the system is currently experiencing issues. Please try again later."
@@ -733,13 +758,19 @@ def chat_api():
                 threat_count=session.get("threat_count", 0),
             )
 
-    response = jsonify({
+    resp_data = {
         "response": response_text,
         "contains_honey_token": contains_honey_token,
         "verdict": verdict,
         "ml_score": ml_result.get("score") if isinstance(ml_result, dict) else None,
         "llm_verdict": llm_verdict,
-    })
+    }
+    # Return honey token link as separate fields so frontend can construct it
+    # safely via DOM APIs (never inject HTML into response text)
+    if contains_honey_token:
+        resp_data["honey_link"] = honey_link
+        resp_data["honey_filename"] = fake_filename
+    response = jsonify(resp_data)
     response.set_cookie("sentinel_session", session_id, max_age=3600,
                         httponly=True, samesite='Strict',
                         secure=BEHIND_PROXY or request.is_secure)

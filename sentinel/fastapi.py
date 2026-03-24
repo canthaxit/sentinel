@@ -90,7 +90,9 @@ class ShieldMiddleware(BaseHTTPMiddleware):
             if body:
                 data = json.loads(body)
                 strings = _extract_strings(data)
-                session_id = request.headers.get(self.session_header, "default")
+                session_id = _validated_session_id(
+                    request.headers.get(self.session_header)
+                )
                 source_ip = request.client.host if request.client else "127.0.0.1"
 
                 for text in strings:
@@ -145,9 +147,21 @@ def _extract_strings(data: Any, depth: int = 0) -> list:
 
 # ---- API Router ----
 
+def _validated_session_id(raw: str | None) -> str:
+    """Return *raw* if it is a valid UUID, otherwise generate a new one."""
+    import uuid
+    if raw:
+        try:
+            uuid.UUID(raw)
+            return raw
+        except ValueError:
+            pass
+    return str(uuid.uuid4())
+
+
 class AnalyzeRequest(BaseModel):
     message: str
-    session_id: str = "default"
+    session_id: str = ""
 
 
 def create_shield_router(
@@ -197,9 +211,10 @@ def create_shield_router(
             raise HTTPException(status_code=400, detail="Message too long (max 10000 chars)")
 
         source_ip = request.client.host if request.client else "127.0.0.1"
+        session_id = _validated_session_id(body.session_id)
         result = shield.analyze(
             body.message,
-            session_id=body.session_id,
+            session_id=session_id,
             source_ip=source_ip,
         )
         return result.to_dict()
