@@ -98,9 +98,21 @@ def require_auth(
                 return jsonify({"error": "Unauthorized"}), 401
 
             # Authorization check
-            if permission is not None and g.user is not None and rbac_manager is not None:
-                if not rbac_manager.authorize(g.user, permission):
-                    return jsonify({"error": "Forbidden"}), 403
+            if permission is not None:
+                if g.user is not None and rbac_manager is not None:
+                    if not rbac_manager.authorize(g.user, permission):
+                        return jsonify({"error": "Forbidden"}), 403
+                elif g.tenant is not None:
+                    # API key auth: only allow basic operations, not admin
+                    from .rbac import Permission as _Perm
+                    _API_KEY_ALLOWED = (
+                        _Perm.ANALYZE,
+                        _Perm.VIEW_DASHBOARD,
+                        _Perm.VIEW_SESSIONS,
+                        _Perm.VIEW_METRICS,
+                    )
+                    if permission not in _API_KEY_ALLOWED:
+                        return jsonify({"error": "Forbidden -- API key insufficient for this operation"}), 403
 
             return f(*args, **kwargs)
         return wrapper

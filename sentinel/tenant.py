@@ -16,7 +16,14 @@ from typing import Any, Dict, List, Optional
 
 # Server-side pepper for key hashing -- set via env var or generate on first run.
 # Changing this invalidates all stored API key hashes.
-_KEY_PEPPER = os.getenv("SENTINEL_KEY_PEPPER", "sentinel-default-pepper-change-me")
+_KEY_PEPPER = os.getenv("SENTINEL_KEY_PEPPER", "")
+if not _KEY_PEPPER:
+    _KEY_PEPPER = "sentinel-default-pepper-change-me"
+    import logging as _pepper_log
+    _pepper_log.getLogger(__name__).critical(
+        "SENTINEL_KEY_PEPPER not set -- using insecure default. "
+        "Set this in production: export SENTINEL_KEY_PEPPER=$(python -c 'import secrets; print(secrets.token_hex(32))')"
+    )
 
 
 @dataclass
@@ -60,6 +67,10 @@ class TenantManager:
         resolved = mgr.resolve_by_api_key(key)
         assert resolved.tenant_id == "acme"
     """
+
+    _ALLOWED_OVERRIDES = {"ml_high", "ml_low", "rate_limit", "session_ttl", "session_max_threats"}
+
+    _UPDATABLE_FIELDS = {"name", "enabled", "tags", "rate_limit", "config_overrides"}
 
     def __init__(self):
         self._tenants: Dict[str, Tenant] = {}
@@ -121,7 +132,7 @@ class TenantManager:
             for k, v in fields.items():
                 if k == "config_overrides" and isinstance(v, dict):
                     tenant.config_overrides.update(v)
-                elif hasattr(tenant, k) and k not in ("tenant_id", "api_key_hash", "created_at"):
+                elif hasattr(tenant, k) and k in self._UPDATABLE_FIELDS:
                     setattr(tenant, k, v)
             return tenant
 
@@ -194,7 +205,9 @@ class TenantManager:
             if tenant is None:
                 return dict(base_config)
             merged = dict(base_config)
-            merged.update(tenant.config_overrides)
+            # Only allow whitelisted override keys
+            sanitized = {k: v for k, v in tenant.config_overrides.items() if k in self._ALLOWED_OVERRIDES}
+            merged.update(sanitized)
             if tenant.rate_limit is not None:
                 merged["rate_limit"] = tenant.rate_limit
             return merged

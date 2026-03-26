@@ -173,7 +173,18 @@ class RBACManager:
         with self._lock:
             return list(self._users.values())
 
+    # Role hierarchy for privilege escalation checks (higher index = more privilege)
+    _ROLE_HIERARCHY = ["api_client", "viewer", "analyst", "admin"]
+
     def update_user(self, user_id: str, **fields) -> User:
+        """Update user fields.
+
+        .. warning::
+            If *role* is changed, the new role must not be higher in the
+            hierarchy than the current role (prevents privilege escalation).
+            To promote a user to a higher role, use an admin-authenticated
+            endpoint that explicitly bypasses this guard.
+        """
         with self._lock:
             user = self._users.get(user_id)
             if user is None:
@@ -188,6 +199,18 @@ class RBACManager:
                 self._username_index[new_name] = user_id
                 user.username = new_name
                 del fields["username"]
+            # Role escalation guard: reject if new role is higher than current
+            if "role" in fields:
+                new_role = fields["role"]
+                cur_idx = self._ROLE_HIERARCHY.index(user.role) if user.role in self._ROLE_HIERARCHY else -1
+                new_idx = self._ROLE_HIERARCHY.index(new_role) if new_role in self._ROLE_HIERARCHY else -1
+                if new_idx > cur_idx:
+                    raise PermissionError(
+                        f"Cannot escalate role from {user.role!r} to {new_role!r} -- "
+                        "use an admin endpoint for promotions"
+                    )
+                user.role = new_role
+                del fields["role"]
             for k, v in fields.items():
                 if hasattr(user, k) and k not in ("user_id", "password_hash", "created_at"):
                     setattr(user, k, v)

@@ -101,6 +101,23 @@ class MLClient:
             log.warning("ANOMALY_API_URL DNS check failed for %r: %s, disabling", host, exc)
             self.api_url = ""
 
+    def _check_resolved_ip(self):
+        """Re-validate DNS resolution before each request to prevent TOCTOU/rebinding."""
+        if not self.api_url:
+            return True
+        from urllib.parse import urlparse
+        parsed = urlparse(self.api_url)
+        hostname = parsed.hostname or ""
+        try:
+            for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, parsed.port or 80):
+                ip = ipaddress.ip_address(sockaddr[0])
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                    log.warning("ANOMALY_API_URL DNS rebinding detected: %s -> %s", hostname, ip)
+                    return False
+        except (socket.gaierror, ValueError):
+            return False
+        return True
+
     def score(self, user_input, session, source_ip):
         """
         Get ML anomaly score for a user message.
@@ -114,6 +131,10 @@ class MLClient:
             dict with score/threat_type/severity/processing_time_ms, or None on failure
         """
         if not self.api_url:
+            return None
+
+        if not self._check_resolved_ip():
+            log.warning("Pre-request DNS validation failed, blocking request")
             return None
 
         try:
