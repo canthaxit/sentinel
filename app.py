@@ -46,7 +46,7 @@ API_KEY = os.getenv("SENTINEL_API_KEY", "")
 if not API_KEY:
     API_KEY = secrets.token_urlsafe(32)
     os.environ["SENTINEL_API_KEY"] = API_KEY
-    log.warning("SENTINEL_API_KEY not set -- generated ephemeral key: %s", API_KEY)
+    log.warning("SENTINEL_API_KEY not set -- generated ephemeral key: %s...", API_KEY[:8])
     log.warning("Set SENTINEL_API_KEY env var for a persistent key across restarts")
 _cors_env = os.getenv("CORS_ORIGINS", "")
 CORS_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else []
@@ -537,6 +537,8 @@ def log_interaction(user_input, verdict, persona, response, honey_clicked=False,
         "sanitizations_applied": sanitizations if sanitizations else []
     }
 
+    _MAX_LOG_ENTRIES = 10000
+
     with log_lock:
         try:
             with open(LOG_FILE, "r") as f:
@@ -545,6 +547,11 @@ def log_interaction(user_input, verdict, persona, response, honey_clicked=False,
             logs = []
 
         logs.append(entry)
+
+        # Log rotation: keep only the most recent entries
+        if len(logs) > _MAX_LOG_ENTRIES:
+            logs = logs[-_MAX_LOG_ENTRIES:]
+
         # Write with restricted permissions (owner-only)
         fd = os.open(LOG_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:

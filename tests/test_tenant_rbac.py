@@ -484,3 +484,67 @@ class TestPackageExports:
     def test_auth_imports(self):
         from sentinel import require_auth
         assert callable(require_auth)
+
+
+# ============================================================
+# Account Lockout Tests
+# ============================================================
+
+
+class TestAccountLockout:
+
+    def test_lockout_after_max_failures(self):
+        rbac = RBACManager(max_failed_attempts=3, lockout_window_seconds=60)
+        rbac.create_user("u1", "alice", "s3cret")
+
+        # 3 bad attempts
+        for _ in range(3):
+            assert rbac.authenticate("alice", "wrong") is None
+
+        # Account should now be locked -- even correct password fails
+        assert rbac.is_locked_out("alice")
+        assert rbac.authenticate("alice", "s3cret") is None
+
+    def test_successful_auth_clears_failures(self):
+        rbac = RBACManager(max_failed_attempts=5, lockout_window_seconds=60)
+        rbac.create_user("u1", "alice", "s3cret")
+
+        # 4 bad attempts (below threshold)
+        for _ in range(4):
+            rbac.authenticate("alice", "wrong")
+
+        # Successful login resets counter
+        assert rbac.authenticate("alice", "s3cret") is not None
+        assert not rbac.is_locked_out("alice")
+
+        # 4 more bad attempts should be fine (counter was reset)
+        for _ in range(4):
+            rbac.authenticate("alice", "wrong")
+        assert not rbac.is_locked_out("alice")
+
+    def test_lockout_expires_after_window(self):
+        rbac = RBACManager(max_failed_attempts=2, lockout_window_seconds=1)
+        rbac.create_user("u1", "alice", "s3cret")
+
+        # Lock the account
+        rbac.authenticate("alice", "wrong")
+        rbac.authenticate("alice", "wrong")
+        assert rbac.is_locked_out("alice")
+
+        # Wait for window to expire
+        time.sleep(1.1)
+        assert not rbac.is_locked_out("alice")
+        assert rbac.authenticate("alice", "s3cret") is not None
+
+    def test_lockout_unknown_user(self):
+        rbac = RBACManager(max_failed_attempts=3, lockout_window_seconds=60)
+
+        # Even unknown users get lockout tracking
+        for _ in range(3):
+            rbac.authenticate("nobody", "pw")
+        assert rbac.is_locked_out("nobody")
+
+    def test_default_lockout_params(self):
+        rbac = RBACManager()
+        assert rbac._max_failed_attempts == 5
+        assert rbac._lockout_window == 900

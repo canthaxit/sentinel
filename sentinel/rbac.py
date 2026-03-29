@@ -93,6 +93,10 @@ class RBACManager:
 
     Thread-safe with RLock on all shared state.
 
+    Account lockout: after ``max_failed_attempts`` (default 5) failed
+    login attempts within ``lockout_window_seconds`` (default 900 = 15 min),
+    the account is locked for the remainder of the window.
+
     Usage::
 
         rbac = RBACManager()
@@ -101,11 +105,16 @@ class RBACManager:
         assert rbac.authorize(authed, Permission.ANALYZE)
     """
 
-    def __init__(self):
+    def __init__(self, max_failed_attempts: int = 5,
+                 lockout_window_seconds: int = 900):
         self._users: Dict[str, User] = {}
         self._username_index: Dict[str, str] = {}  # username -> user_id
         self._custom_roles: Dict[str, FrozenSet[Permission]] = {}
         self._lock = threading.RLock()
+        # Account lockout tracking: username -> list of failure timestamps
+        self._failed_attempts: Dict[str, list] = {}
+        self._max_failed_attempts = max_failed_attempts
+        self._lockout_window = lockout_window_seconds
 
     # ---- Role management ----
 
@@ -224,27 +233,71 @@ class RBACManager:
             self._username_index.pop(user.username, None)
             return True
 
+    # ---- Account lockout helpers ----
+
+    def _prune_failed_attempts(self, username: str) -> None:
+        """Remove failure records older than the lockout window (caller holds lock)."""
+        cutoff = time.time() - self._lockout_window
+        attempts = self._failed_attempts.get(username)
+        if attempts:
+            self._failed_attempts[username] = [t for t in attempts if t > cutoff]
+
+    def _is_locked_out(self, username: str) -> bool:
+        """Check if the account is currently locked (caller holds lock)."""
+        self._prune_failed_attempts(username)
+        attempts = self._failed_attempts.get(username, [])
+        return len(attempts) >= self._max_failed_attempts
+
+    def _record_failure(self, username: str) -> None:
+        """Record a failed login attempt (caller holds lock)."""
+        self._failed_attempts.setdefault(username, []).append(time.time())
+
+    def _clear_failures(self, username: str) -> None:
+        """Clear failure records on successful auth (caller holds lock)."""
+        self._failed_attempts.pop(username, None)
+
+    def is_locked_out(self, username: str) -> bool:
+        """Public check: is the account currently locked?"""
+        with self._lock:
+            return self._is_locked_out(username)
+
     # ---- Authentication ----
 
     def authenticate(self, username: str, password: str) -> Optional[User]:
         """Authenticate by username + password.
 
         Returns the User on success, None on failure.
+        Accounts are locked after ``max_failed_attempts`` failures
+        within the lockout window.
         """
         with self._lock:
+            # Check lockout before doing any work
+            if self._is_locked_out(username):
+                # Still do a dummy hash to prevent timing leaks
+                _hash_password(password)
+                return None
+
             uid = self._username_index.get(username)
             if uid is None:
                 # Perform a dummy hash to prevent timing leaks
                 _hash_password(password)
+                self._record_failure(username)
                 return None
             user = self._users.get(uid)
 
         if user is None or not user.enabled:
             _hash_password(password)
+            with self._lock:
+                self._record_failure(username)
             return None
 
         if _verify_password(password, user.password_hash):
+            with self._lock:
+                self._clear_failures(username)
             return user
+
+        with self._lock:
+            self._record_failure(username)
         return None
 
     # ---- Authorization ----

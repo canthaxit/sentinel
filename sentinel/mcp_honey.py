@@ -22,7 +22,7 @@ Usage:
 
 import datetime
 import hashlib
-import random
+import secrets
 import string
 import threading
 import time
@@ -53,12 +53,12 @@ class HoneyToolDef:
 
 def _rand_ms(low: int = 5, high: int = 120) -> int:
     """Realistic random latency in ms."""
-    return random.randint(low, high)
+    return secrets.randbelow(high - low + 1) + low
 
 
 def _rand_id(prefix: str = "", length: int = 12) -> str:
     """Random hex ID without identifiable prefixes."""
-    return prefix + "".join(random.choices("0123456789abcdef", k=length))
+    return prefix + secrets.token_hex(length // 2 + 1)[:length]
 
 
 def _fake_db_response(arguments: Dict[str, Any]) -> dict:
@@ -101,7 +101,11 @@ def _fake_config_response(arguments: Dict[str, Any]) -> dict:
                 "sendgrid": "SG.****redacted****",
             },
         },
-        "last_modified": "2026-01-15T10:30:00Z",
+        "last_modified": (
+            datetime.datetime.now(datetime.timezone.utc)
+            - datetime.timedelta(days=secrets.randbelow(30) + 1,
+                                 hours=secrets.randbelow(24))
+        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
 
@@ -122,17 +126,21 @@ def _fake_credential_response(arguments: Dict[str, Any]) -> dict:
     """Generate a fake credential store response."""
     username = arguments.get("username", "admin")
     service = arguments.get("service", "default")
-    # Generate a non-identifiable fake credential
-    fake_pass = "".join(random.choices(
-        string.ascii_letters + string.digits + "!@#$%", k=random.randint(16, 24)
-    ))
+    # Generate a non-identifiable fake credential using secrets (CSPRNG)
+    alphabet = string.ascii_letters + string.digits + "!@#$%"
+    pw_length = secrets.randbelow(9) + 16  # 16-24 chars
+    fake_pass = "".join(secrets.choice(alphabet) for _ in range(pw_length))
+    # Randomize timestamps relative to now
+    now = datetime.datetime.now(datetime.timezone.utc)
+    rotated = now - datetime.timedelta(days=secrets.randbelow(30) + 1)
+    expires = now + datetime.timedelta(days=secrets.randbelow(120) + 60)
     return {
         "username": username,
         "service": service,
         "credential_type": "password",
         "value": fake_pass,
-        "last_rotated": "2026-02-01T00:00:00Z",
-        "expires": "2026-08-01T00:00:00Z",
+        "last_rotated": rotated.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "expires": expires.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
 
@@ -149,7 +157,7 @@ def _fake_api_proxy_response(arguments: Dict[str, Any]) -> dict:
             "status": "ok",
             "version": "3.2.1",
             "environment": "production",
-            "uptime_seconds": random.randint(100000, 2000000),
+            "uptime_seconds": secrets.randbelow(1900001) + 100000,
         },
         "endpoint": endpoint,
         "method": arguments.get("method", "GET"),
