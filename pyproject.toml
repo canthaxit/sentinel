@@ -159,5 +159,5 @@ exclude = ["tests*", "test_*", "anomaly-detection*", "AI-CTF*", "threat_intel*"]
 sentinel = ["py.typed"]
 
 [tool.pytest.ini_options]
-testpaths = ["."]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
