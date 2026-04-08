@@ -18,12 +18,19 @@ from typing import Any, Dict, List, Optional
 # Changing this invalidates all stored API key hashes.
 _KEY_PEPPER = os.getenv("SENTINEL_KEY_PEPPER", "")
 if not _KEY_PEPPER:
-    _KEY_PEPPER = "sentinel-default-pepper-change-me"
     import logging as _pepper_log
-    _pepper_log.getLogger(__name__).critical(
-        "SENTINEL_KEY_PEPPER not set -- using insecure default. "
-        "Set this in production: export SENTINEL_KEY_PEPPER=$(python -c 'import secrets; print(secrets.token_hex(32))')"
-    )
+    if os.getenv("SENTINEL_ALLOW_DEFAULT_PEPPER", "").lower() in ("1", "true"):
+        _KEY_PEPPER = "sentinel-default-pepper-change-me"
+        _pepper_log.getLogger(__name__).critical(
+            "SENTINEL_KEY_PEPPER not set -- using insecure default. "
+            "Set this in production: export SENTINEL_KEY_PEPPER=$(python -c 'import secrets; print(secrets.token_hex(32))')"
+        )
+    else:
+        raise RuntimeError(
+            "SENTINEL_KEY_PEPPER environment variable is required. "
+            "Generate one with: export SENTINEL_KEY_PEPPER=$(python -c 'import secrets; print(secrets.token_hex(32))')\n"
+            "For development/testing only: export SENTINEL_ALLOW_DEFAULT_PEPPER=1"
+        )
 
 
 @dataclass

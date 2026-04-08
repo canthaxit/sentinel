@@ -616,6 +616,7 @@ def dashboard():
 
 
 @app.route('/api/chat', methods=['POST'])
+@require_api_key
 def chat_api():
     if not check_rate_limit(request.remote_addr):
         if _cef_logger:
