@@ -412,8 +412,31 @@ class TestShieldIntegration:
 class TestBlueprint:
     def test_create_blueprint(self):
         from sentinel import create_shield_blueprint
-        bp = create_shield_blueprint()
+        bp = create_shield_blueprint(allow_unauthenticated=True)
         assert bp.name == "shield"
+
+    def test_blueprint_fails_closed_when_key_unset(self, monkeypatch):
+        """CRIT F-01 regression: blueprint must refuse to start fail-open."""
+        import pytest
+        from sentinel import create_shield_blueprint
+        monkeypatch.delenv("SENTINEL_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="SENTINEL_API_KEY"):
+            create_shield_blueprint()
+
+    def test_blueprint_fails_closed_with_explicit_false(self, monkeypatch):
+        import pytest
+        from sentinel import create_shield_blueprint
+        monkeypatch.delenv("SENTINEL_API_KEY", raising=False)
+        with pytest.raises(RuntimeError):
+            create_shield_blueprint(allow_unauthenticated=False)
+
+    def test_router_fails_closed_when_key_unset(self, monkeypatch):
+        import pytest
+        from sentinel.fastapi import create_shield_router
+        monkeypatch.delenv("SENTINEL_API_KEY", raising=False)
+        shield = Shield(ml_client=MLClient(api_url=""), llm_judge=LLMJudge())
+        with pytest.raises(RuntimeError, match="SENTINEL_API_KEY"):
+            create_shield_router(shield)
 
     def test_blueprint_with_flask(self):
         from flask import Flask
@@ -424,7 +447,10 @@ class TestBlueprint:
             ml_client=MLClient(api_url=""),
             llm_judge=LLMJudge(),
         )
-        app.register_blueprint(create_shield_blueprint(shield), url_prefix="/shield")
+        app.register_blueprint(
+            create_shield_blueprint(shield, allow_unauthenticated=True),
+            url_prefix="/shield",
+        )
 
         with app.test_client() as client:
             # Health check

@@ -167,6 +167,7 @@ class AnalyzeRequest(BaseModel):
 def create_shield_router(
     shield: Shield,
     require_api_key: bool = True,
+    allow_unauthenticated: bool = False,
 ) -> APIRouter:
     """Create a FastAPI APIRouter that mirrors the Flask Shield blueprint.
 
@@ -175,10 +176,35 @@ def create_shield_router(
         ``GET  /health``  -- health check
         ``GET  /sessions`` -- list session summaries (auth required)
 
+    Authentication:
+        By default this router requires the ``SENTINEL_API_KEY`` env var to
+        be set. If it is unset, ``create_shield_router`` raises
+        ``RuntimeError`` at call time to prevent silently fail-open
+        deployments (see CRIT F-01, 2026-04-22 audit). To intentionally run
+        without authentication (local dev, trusted-network usage), pass
+        ``allow_unauthenticated=True`` as an explicit opt-in.
+
     Args:
         shield: A ``Shield`` instance.
         require_api_key: If True, ``SENTINEL_API_KEY`` env var is enforced.
+        allow_unauthenticated: Explicit opt-in to run without an API key.
+            Must be True for the router to accept requests when
+            ``SENTINEL_API_KEY`` is unset. Defaults to False (fail-closed).
+
+    Raises:
+        RuntimeError: When ``require_api_key`` is True, ``SENTINEL_API_KEY``
+            is unset, and ``allow_unauthenticated`` is False.
     """
+    api_key_configured = bool(os.getenv("SENTINEL_API_KEY", ""))
+    if require_api_key and not api_key_configured and not allow_unauthenticated:
+        raise RuntimeError(
+            "SENTINEL_API_KEY is not set. Shield FastAPI router refuses to "
+            "start fail-open. Set the SENTINEL_API_KEY environment "
+            "variable, or pass allow_unauthenticated=True to "
+            "create_shield_router() to explicitly opt in to unauthenticated "
+            "access."
+        )
+
     router = APIRouter()
 
     # ---- auth dependency ----
@@ -186,7 +212,9 @@ def create_shield_router(
     async def verify_api_key(x_api_key: Optional[str] = Header(None)):
         expected = os.getenv("SENTINEL_API_KEY", "")
         if not expected:
-            return  # No key configured -- open access
+            if allow_unauthenticated:
+                return  # Explicit opt-in: open access
+            raise HTTPException(status_code=401, detail="Unauthorized")
         if not x_api_key or not hmac.compare_digest(
             x_api_key.encode(), expected.encode()
         ):

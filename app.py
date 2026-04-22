@@ -109,7 +109,14 @@ except ImportError as e:
 # Run:     gauntlet run --target http://localhost:5000/api/chat
 
 # --- SHIELD API ---
-app.register_blueprint(create_shield_blueprint(_shield), url_prefix='/shield')
+# Shield blueprint runs without an API key in this demo app (the surrounding
+# FastAPI layer handles auth). Explicitly opt in to unauth after the
+# 2026-04-22 CRIT F-01 fail-closed-default change.
+_shield_allow_unauth = not bool(os.getenv("SENTINEL_API_KEY", ""))
+app.register_blueprint(
+    create_shield_blueprint(_shield, allow_unauthenticated=_shield_allow_unauth),
+    url_prefix='/shield',
+)
 log.info("Shield module loaded, endpoints at /shield/")
 
 

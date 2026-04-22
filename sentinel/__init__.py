@@ -569,7 +569,7 @@ class Shield:
         return self.rate_limiter.check(ip)
 
 
-def create_shield_blueprint(shield=None):
+def create_shield_blueprint(shield=None, allow_unauthenticated=False):
     """
     Create a Flask Blueprint that exposes the Shield as an API proxy.
 
@@ -578,16 +578,41 @@ def create_shield_blueprint(shield=None):
         GET  /health    - Health check
         GET  /sessions  - List sessions
 
+    Authentication:
+        By default this blueprint requires the ``SENTINEL_API_KEY`` env var
+        to be set. If it is unset, ``create_shield_blueprint`` raises
+        ``RuntimeError`` at call time to prevent silently fail-open
+        deployments (see CRIT F-01, 2026-04-22 audit). To intentionally run
+        without authentication (e.g. local dev, trusted-network usage), pass
+        ``allow_unauthenticated=True`` as an explicit opt-in.
+
     Args:
         shield: Shield instance (creates default if None)
+        allow_unauthenticated: Explicit opt-in to run without an API key.
+            Must be True for the blueprint to accept requests when
+            ``SENTINEL_API_KEY`` is unset. Defaults to False (fail-closed).
 
     Returns:
         Flask Blueprint
+
+    Raises:
+        RuntimeError: If ``SENTINEL_API_KEY`` is unset and
+            ``allow_unauthenticated`` is False.
     """
     import hmac
     import os
     import functools
     from flask import Blueprint, request, jsonify
+
+    api_key_configured = bool(os.getenv("SENTINEL_API_KEY", ""))
+    if not api_key_configured and not allow_unauthenticated:
+        raise RuntimeError(
+            "SENTINEL_API_KEY is not set. Shield blueprint refuses to "
+            "start fail-open. Set the SENTINEL_API_KEY environment "
+            "variable, or pass allow_unauthenticated=True to "
+            "create_shield_blueprint() to explicitly opt in to "
+            "unauthenticated access."
+        )
 
     bp = Blueprint("shield", __name__)
     _shield = shield or Shield()
@@ -597,7 +622,9 @@ def create_shield_blueprint(shield=None):
         def decorated(*args, **kwargs):
             api_key = os.getenv("SENTINEL_API_KEY", "")
             if not api_key:
-                return f(*args, **kwargs)
+                if allow_unauthenticated:
+                    return f(*args, **kwargs)
+                return jsonify({"error": "Unauthorized"}), 401
             key = request.headers.get("X-API-Key", "")
             if not key or not hmac.compare_digest(key.encode(), api_key.encode()):
                 return jsonify({"error": "Unauthorized"}), 401
