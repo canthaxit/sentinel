@@ -3,6 +3,7 @@
 import os
 
 from sentinel.llm_judge import LLMJudge
+from sentinel.model_config import get_model
 
 
 # ============================================================================
@@ -13,8 +14,7 @@ class AnthropicJudge(LLMJudge):
     """Anthropic Claude judge. Requires: pip install anthropic"""
 
     def __init__(self, model=None, api_key=None, **kwargs):
-        default_model = os.getenv("SHIELD_LLM_MODEL", "claude-sonnet-4-5-20250929")
-        super().__init__(model=model or default_model, **kwargs)
+        super().__init__(model=model or get_model("anthropic"), **kwargs)
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
         if not self.api_key:
             raise ValueError("Anthropic API key required. Set ANTHROPIC_API_KEY env var.")

@@ -3,6 +3,7 @@
 import os
 
 from sentinel.llm_judge import LLMJudge
+from sentinel.model_config import get_model
 
 
 # ============================================================================
@@ -13,8 +14,7 @@ class VertexAIJudge(LLMJudge):
     """Google Vertex AI judge. Requires: pip install google-cloud-aiplatform"""
 
     def __init__(self, model=None, project=None, location=None, **kwargs):
-        default_model = os.getenv("SHIELD_LLM_MODEL", "gemini-2.0-flash")
-        super().__init__(model=model or default_model, **kwargs)
+        super().__init__(model=model or get_model("google_vertex"), **kwargs)
         self.project = project or os.getenv("GOOGLE_CLOUD_PROJECT", "")
         self.location = location or os.getenv("GOOGLE_CLOUD_REGION", "us-central1")
         if not self.project:
@@ -55,8 +55,7 @@ class GeminiJudge(LLMJudge):
     """Google Gemini API judge. Requires: pip install google-generativeai"""
 
     def __init__(self, model=None, api_key=None, **kwargs):
-        default_model = os.getenv("SHIELD_LLM_MODEL", "gemini-2.0-flash")
-        super().__init__(model=model or default_model, **kwargs)
+        super().__init__(model=model or get_model("google_gemini"), **kwargs)
         self.api_key = api_key or os.getenv("GOOGLE_API_KEY", "")
         if not self.api_key:
             raise ValueError("Google API key required. Set GOOGLE_API_KEY env var.")

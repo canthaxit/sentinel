@@ -3,6 +3,7 @@
 import os
 
 from sentinel.llm_judge import LLMJudge
+from sentinel.model_config import get_model
 
 
 # ============================================================================
@@ -13,8 +14,7 @@ class OpenAIJudge(LLMJudge):
     """OpenAI GPT-based judge. Requires: pip install openai"""
 
     def __init__(self, model=None, api_key=None, **kwargs):
-        default_model = os.getenv("SHIELD_LLM_MODEL", "gpt-4o-mini")
-        super().__init__(model=model or default_model, **kwargs)
+        super().__init__(model=model or get_model("openai"), **kwargs)
         self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         if not self.api_key:
             raise ValueError("OpenAI API key required. Set OPENAI_API_KEY env var.")
