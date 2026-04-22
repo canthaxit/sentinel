@@ -33,10 +33,7 @@ class RateLimiter:
         with self._lock:
             # Periodic cleanup of stale IPs
             if now - self._last_cleanup > self.cleanup_interval:
-                stale = [
-                    k for k, v in self._store.items()
-                    if not v or now - v[-1] > self.window
-                ]
+                stale = [k for k, v in self._store.items() if not v or now - v[-1] > self.window]
                 for k in stale:
                     del self._store[k]
                 self._last_cleanup = now

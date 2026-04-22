@@ -66,6 +66,7 @@ def _get_shield():
         if _shield is not None:
             return _shield
         from sentinel import Shield
+
         _shield = Shield(fail_open=False)
         log.info("Shield singleton initialised (fail_open=False)")
         return _shield
@@ -80,6 +81,7 @@ def _get_guard():
         if _guard is not None:
             return _guard
         from sentinel.mcp_guard import MCPGuard as _MCPGuard
+
         shield = _get_shield()
         _guard = _MCPGuard(
             session_manager=shield.session_manager,

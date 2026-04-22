@@ -45,7 +45,7 @@ class MLClient:
             or addr.is_link_local
             or addr.is_reserved
             or addr.is_multicast
-            or addr.is_unspecified          # 0.0.0.0, ::
+            or addr.is_unspecified  # 0.0.0.0, ::
         )
 
     def _validate_url(self):
@@ -61,6 +61,7 @@ class MLClient:
         if not self.api_url:
             return
         from urllib.parse import urlparse
+
         parsed = urlparse(self.api_url)
         if parsed.scheme not in ("http", "https"):
             log.warning("ANOMALY_API_URL has invalid scheme %r, disabling", parsed.scheme)
@@ -106,6 +107,7 @@ class MLClient:
         if not self.api_url:
             return True
         from urllib.parse import urlparse
+
         parsed = urlparse(self.api_url)
         hostname = parsed.hostname or ""
         try:
@@ -141,10 +143,21 @@ class MLClient:
             context_events = session.get("interactions", [])[-20:]
 
             suspicious_keywords = [
-                "password", "secret", "admin", "ignore", "instructions",
-                "system prompt", "credentials", "token", "api key",
+                "password",
+                "secret",
+                "admin",
+                "ignore",
+                "instructions",
+                "system prompt",
+                "credentials",
+                "token",
+                "api key",
             ]
-            action = "failed" if any(kw in user_input.lower() for kw in suspicious_keywords) else "success"
+            action = (
+                "failed"
+                if any(kw in user_input.lower() for kw in suspicious_keywords)
+                else "success"
+            )
 
             current_event = {
                 "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

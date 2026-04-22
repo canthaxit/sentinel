@@ -51,7 +51,9 @@ def pre_filter_check(user_input: str, session: dict, sanitizations: list | None 
 
     # Rule 5: Repeated attack patterns (3+ diverse patterns)
     if len(session.get("attack_patterns", [])) >= 3:
-        log.info("Pre-filter blocked: Multiple attack patterns (%d)", len(session["attack_patterns"]))
+        log.info(
+            "Pre-filter blocked: Multiple attack patterns (%d)", len(session["attack_patterns"])
+        )
         return True, "MULTIPLE_PATTERNS"
 
     # Rule 6: High frequency of sanitization events

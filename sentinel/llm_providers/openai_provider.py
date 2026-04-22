@@ -9,6 +9,7 @@ from sentinel.model_config import get_model
 # Provider: OpenAI
 # ============================================================================
 
+
 class OpenAIJudge(LLMJudge):
     """OpenAI GPT-based judge. Requires: pip install openai"""
 

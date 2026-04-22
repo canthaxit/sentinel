@@ -41,6 +41,7 @@ class HoneyToolDef:
         severity: Severity when triggered (always high or critical).
         tags: Classification tags for the honey tool.
     """
+
     name: str
     description: str
     input_schema: dict
@@ -70,7 +71,12 @@ def _fake_db_response(arguments: dict[str, Any]) -> dict:
         "columns": ["id", "username", "email", "role"],
         "data": [
             {"id": 1, "username": "admin_user", "email": "admin@example.internal", "role": "admin"},
-            {"id": 2, "username": "service_acct", "email": "svc@example.internal", "role": "service"},
+            {
+                "id": 2,
+                "username": "service_acct",
+                "email": "svc@example.internal",
+                "role": "service",
+            },
         ],
         "query_time_ms": _rand_ms(8, 95),
         "database": arguments.get("database", "production"),
@@ -103,8 +109,7 @@ def _fake_config_response(arguments: dict[str, Any]) -> dict:
         },
         "last_modified": (
             datetime.datetime.now(datetime.UTC)
-            - datetime.timedelta(days=secrets.randbelow(30) + 1,
-                                 hours=secrets.randbelow(24))
+            - datetime.timedelta(days=secrets.randbelow(30) + 1, hours=secrets.randbelow(24))
         ).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
@@ -360,7 +365,8 @@ class HoneyToolRegistry:
             trigger_record = {
                 "tool": name,
                 "arguments": {k: str(v)[:200] for k, v in arguments.items()}
-                    if isinstance(arguments, dict) else str(arguments)[:200],
+                if isinstance(arguments, dict)
+                else str(arguments)[:200],
                 "timestamp": datetime.datetime.now().isoformat(),
                 "severity": self._tools[name].severity,
                 "tags": list(self._tools[name].tags),

@@ -24,8 +24,7 @@ class SessionManager:
             When provided, sessions survive restarts.
     """
 
-    def __init__(self, ttl=None, max_count=None, cleanup_interval=None,
-                 storage_backend=None):
+    def __init__(self, ttl=None, max_count=None, cleanup_interval=None, storage_backend=None):
         self.ttl = ttl or config.SESSION_TTL_SECONDS
         self.max_count = max_count or config.SESSION_MAX_COUNT
         self.cleanup_interval = cleanup_interval or config.SESSION_CLEANUP_INTERVAL
@@ -91,7 +90,8 @@ class SessionManager:
         with self._lock:
             now = datetime.datetime.now()
             expired = [
-                sid for sid, s in self._sessions.items()
+                sid
+                for sid, s in self._sessions.items()
                 if (now - s.get("last_activity", now)).total_seconds() > self.ttl
             ]
             for sid in expired:
@@ -102,7 +102,9 @@ class SessionManager:
                     except (OSError, Exception) as e:
                         log.warning("Failed to delete session %s from storage: %s", sid[:8], e)
             if expired:
-                log.info("Cleaned up %d expired sessions. Active: %d", len(expired), len(self._sessions))
+                log.info(
+                    "Cleaned up %d expired sessions. Active: %d", len(expired), len(self._sessions)
+                )
 
     def get(self, session_id):
         """Get session state (read-only copy)."""
@@ -137,7 +139,9 @@ class SessionManager:
                 session_id, user_input, verdict, ml_result, source_ip, now, sanitizations
             )
 
-    def _update_locked(self, session_id, user_input, verdict, ml_result, source_ip, now, sanitizations=None):
+    def _update_locked(
+        self, session_id, user_input, verdict, ml_result, source_ip, now, sanitizations=None
+    ):
         """Inner update with lock held."""
         if session_id not in self._sessions:
             if len(self._sessions) >= self.max_count:
@@ -185,7 +189,7 @@ class SessionManager:
         }
         MAX_INTERACTIONS = 200
         if len(session["interactions"]) >= MAX_INTERACTIONS:
-            session["interactions"] = session["interactions"][-(MAX_INTERACTIONS - 1):]
+            session["interactions"] = session["interactions"][-(MAX_INTERACTIONS - 1) :]
         session["interactions"].append(log_event)
 
         # Update counters
@@ -213,11 +217,15 @@ class SessionManager:
         if session["cumulative_risk_score"] >= config.SESSION_RISK_ESCALATION:
             escalation_reasons.append(f"cumulative_risk={session['cumulative_risk_score']:.2f}")
         if session["instruction_override_attempts"] >= 2:
-            escalation_reasons.append(f"instruction_overrides={session['instruction_override_attempts']}")
+            escalation_reasons.append(
+                f"instruction_overrides={session['instruction_override_attempts']}"
+            )
         if session["persona_override_attempts"] >= 2:
             escalation_reasons.append(f"persona_overrides={session['persona_override_attempts']}")
         if session["hypothetical_framing_count"] >= 2:
-            escalation_reasons.append(f"hypothetical_attacks={session['hypothetical_framing_count']}")
+            escalation_reasons.append(
+                f"hypothetical_attacks={session['hypothetical_framing_count']}"
+            )
         if session["dan_jailbreak_attempts"] >= 1:
             escalation_reasons.append(f"dan_jailbreak={session['dan_jailbreak_attempts']}")
         if session["logic_trap_attempts"] >= 1:
@@ -243,8 +251,9 @@ class SessionManager:
 
         return dict(session)
 
-    def update_mcp(self, session_id, tool_name, blocked, findings,
-                   source_ip, honey_triggered=False):
+    def update_mcp(
+        self, session_id, tool_name, blocked, findings, source_ip, honey_triggered=False
+    ):
         """
         Update session state with an MCP tool call event.
 
@@ -309,13 +318,9 @@ class SessionManager:
             escalation_reasons = []
 
             if session["mcp_tool_calls_blocked"] >= 3:
-                escalation_reasons.append(
-                    f"mcp_blocked={session['mcp_tool_calls_blocked']}"
-                )
+                escalation_reasons.append(f"mcp_blocked={session['mcp_tool_calls_blocked']}")
             if session["mcp_honey_triggers"] >= 1:
-                escalation_reasons.append(
-                    f"mcp_honey_triggers={session['mcp_honey_triggers']}"
-                )
+                escalation_reasons.append(f"mcp_honey_triggers={session['mcp_honey_triggers']}")
             if len(session["mcp_attack_patterns"]) >= 2:
                 escalation_reasons.append(
                     f"mcp_diverse_attacks={len(session['mcp_attack_patterns'])}"
@@ -331,7 +336,8 @@ class SessionManager:
                     session["escalation_reason"] = new_reasons
                 log.warning(
                     "Session %s escalated (MCP): %s",
-                    session_id[:8], new_reasons,
+                    session_id[:8],
+                    new_reasons,
                 )
 
             session["last_activity"] = now

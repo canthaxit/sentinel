@@ -12,6 +12,7 @@ log = logging.getLogger(__name__)
 # Provider: Fallback Chain (tries providers in order)
 # ============================================================================
 
+
 class FallbackJudge(LLMJudge):
     """Tries multiple LLM providers in order until one succeeds.
 
@@ -41,6 +42,7 @@ class FallbackJudge(LLMJudge):
             return
         # Lazy import to avoid circular dependency with factory.py
         from .factory import create_llm_judge
+
         self._chain = []
         for name in self._provider_names:
             try:

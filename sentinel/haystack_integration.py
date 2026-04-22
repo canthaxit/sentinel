@@ -92,14 +92,18 @@ class ShieldGuard:
             return {"text": text, "blocked": False, "result": {}}
 
         result = self.shield.analyze(
-            text, session_id=self.session_id, source_ip=self.source_ip,
+            text,
+            session_id=self.session_id,
+            source_ip=self.source_ip,
         )
         self.last_result = result
 
         if result.blocked:
             log.warning(
                 "Shield blocked input (verdict=%s method=%s session=%s)",
-                result.verdict, result.detection_method, self.session_id,
+                result.verdict,
+                result.detection_method,
+                self.session_id,
             )
             if self.mode == "block":
                 raise ShieldBlockedError(

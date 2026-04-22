@@ -24,6 +24,7 @@ def _safe_int(key: str, default: int) -> int:
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass
@@ -34,6 +35,7 @@ except ImportError:
 FAIL_OPEN = os.getenv("SHIELD_FAIL_OPEN", "false").lower() in ("true", "1", "yes")
 if FAIL_OPEN:
     import logging as _log_cfg
+
     _log_cfg.getLogger(__name__).critical(
         "SHIELD_FAIL_OPEN=true -- attacks SILENTLY PASS when ML/LLM backends are "
         "unavailable. Disable this in production: unset SHIELD_FAIL_OPEN"
@@ -125,8 +127,15 @@ ATTACK_INTENT_KEYWORDS = [
 ]
 
 RESTRICTED_KEYWORDS = [
-    "password", "secret", "credential", "admin", "bypass",
-    "security", "restricted", "confidential", "classified",
+    "password",
+    "secret",
+    "credential",
+    "admin",
+    "bypass",
+    "security",
+    "restricted",
+    "confidential",
+    "classified",
 ]
 
 # --- Attack Pattern Detection ---
@@ -277,10 +286,22 @@ LLM_JUDGE_SYSTEM_PROMPT = (
 )
 
 REFUSAL_PATTERNS = [
-    "I CANNOT", "I WILL NOT", "I MUST NOT", "I WON'T",
-    "I SHOULDN'T", "I CAN'T", "NOT PROVIDE", "NOT REVEAL",
-    "NOT SHARE", "NOT DISCLOSE", "CANNOT PROVIDE", "CANNOT REVEAL",
-    "CANNOT SHARE", "CANNOT DISCLOSE", "REFUSE TO", "UNABLE TO PROVIDE",
+    "I CANNOT",
+    "I WILL NOT",
+    "I MUST NOT",
+    "I WON'T",
+    "I SHOULDN'T",
+    "I CAN'T",
+    "NOT PROVIDE",
+    "NOT REVEAL",
+    "NOT SHARE",
+    "NOT DISCLOSE",
+    "CANNOT PROVIDE",
+    "CANNOT REVEAL",
+    "CANNOT SHARE",
+    "CANNOT DISCLOSE",
+    "REFUSE TO",
+    "UNABLE TO PROVIDE",
 ]
 
 # --- Scanner Configuration ---
@@ -313,7 +334,11 @@ DRIFT_ENABLED = os.getenv("SHIELD_DRIFT_ENABLED", "true").lower() in ("true", "1
 
 # --- MCP (Model Context Protocol) Security ---
 MCP_ENABLED = os.getenv("SHIELD_MCP_ENABLED", "true").lower() in ("true", "1", "yes")
-MCP_BLOCK_ON_CRITICAL = os.getenv("SHIELD_MCP_BLOCK_CRITICAL", "true").lower() in ("true", "1", "yes")
+MCP_BLOCK_ON_CRITICAL = os.getenv("SHIELD_MCP_BLOCK_CRITICAL", "true").lower() in (
+    "true",
+    "1",
+    "yes",
+)
 MCP_BLOCK_ON_HIGH = os.getenv("SHIELD_MCP_BLOCK_HIGH", "true").lower() in ("true", "1", "yes")
 MCP_MAX_ARGUMENT_LENGTH = _safe_int("SHIELD_MCP_MAX_ARG_LEN", 10000)
 MCP_MAX_ARGUMENT_DEPTH = _safe_int("SHIELD_MCP_MAX_ARG_DEPTH", 10)
@@ -322,65 +347,143 @@ MCP_HONEY_TOOLS_ENABLED = os.getenv("SHIELD_MCP_HONEY", "true").lower() in ("tru
 
 # Shell metacharacters that indicate command injection
 MCP_SHELL_METACHARACTERS = [
-    ";", "|", "`", "$(", "${", "&&", "||", "\n", "\r",
-    ">", "<", ">>",
+    ";",
+    "|",
+    "`",
+    "$(",
+    "${",
+    "&&",
+    "||",
+    "\n",
+    "\r",
+    ">",
+    "<",
+    ">>",
 ]
 
 # OS commands that should not appear in tool arguments
 MCP_OS_COMMANDS = [
-    "rm ", "rm\t", "rmdir", "del ", "format ", "fdisk",
-    "wget ", "curl ", "fetch ", "nc ", "ncat ",
-    "sudo ", "su ", "chmod ", "chown ", "chgrp ",
-    "bash ", "bash\t", "sh ", "sh\t", "zsh ", "cmd ", "powershell",
-    "python -c ", "python3 -c ", "perl -e ", "ruby -e ", "node -e ",
-    "eval ", "exec ", "spawn",
-    "mkfifo", "mknod", "dd ",
-    "iptables", "netsh", "reg ",
-    "/bin/sh", "/bin/bash",
-    "cat /etc/", "cp /", "scp ",
-    "ssh ", "docker ", "kubectl ",
-    "mount ", "umount ",
+    "rm ",
+    "rm\t",
+    "rmdir",
+    "del ",
+    "format ",
+    "fdisk",
+    "wget ",
+    "curl ",
+    "fetch ",
+    "nc ",
+    "ncat ",
+    "sudo ",
+    "su ",
+    "chmod ",
+    "chown ",
+    "chgrp ",
+    "bash ",
+    "bash\t",
+    "sh ",
+    "sh\t",
+    "zsh ",
+    "cmd ",
+    "powershell",
+    "python -c ",
+    "python3 -c ",
+    "perl -e ",
+    "ruby -e ",
+    "node -e ",
+    "eval ",
+    "exec ",
+    "spawn",
+    "mkfifo",
+    "mknod",
+    "dd ",
+    "iptables",
+    "netsh",
+    "reg ",
+    "/bin/sh",
+    "/bin/bash",
+    "cat /etc/",
+    "cp /",
+    "scp ",
+    "ssh ",
+    "docker ",
+    "kubectl ",
+    "mount ",
+    "umount ",
 ]
 
 # SQL injection patterns
 MCP_SQL_PATTERNS = [
-    "union select", "union all select",
-    "drop table", "drop database",
-    "insert into ", "delete from ",
-    " or '1'='1", "' or '",
-    "' or '1'='1", "' or 1=1",
-    "'; --", "' --",
-    "exec ", "execute ",
-    "xp_cmdshell", "sp_executesql",
-    "information_schema", "sys.tables",
-    "load_file(", "into outfile",
-    "into dumpfile", "benchmark(",
-    "sleep(", "waitfor delay",
+    "union select",
+    "union all select",
+    "drop table",
+    "drop database",
+    "insert into ",
+    "delete from ",
+    " or '1'='1",
+    "' or '",
+    "' or '1'='1",
+    "' or 1=1",
+    "'; --",
+    "' --",
+    "exec ",
+    "execute ",
+    "xp_cmdshell",
+    "sp_executesql",
+    "information_schema",
+    "sys.tables",
+    "load_file(",
+    "into outfile",
+    "into dumpfile",
+    "benchmark(",
+    "sleep(",
+    "waitfor delay",
 ]
 
 # Path traversal indicators
 MCP_PATH_TRAVERSAL = [
-    "../", "..\\",
-    "%2e%2e/", "%2e%2e%2f",
-    "..%2f", "%2e%2e\\",
-    "..%5c", "%2e%2e%5c",
-    "....//", "....\\\\",
+    "../",
+    "..\\",
+    "%2e%2e/",
+    "%2e%2e%2f",
+    "..%2f",
+    "%2e%2e\\",
+    "..%5c",
+    "%2e%2e%5c",
+    "....//",
+    "....\\\\",
 ]
 
 # Sensitive file paths
 MCP_SENSITIVE_PATHS = [
-    "/etc/passwd", "/etc/shadow", "/etc/hosts",
-    "/etc/sudoers", "/etc/ssh/",
-    "~/.ssh/", "/.ssh/",
-    "~/.aws/", "/.aws/credentials",
-    "~/.kube/config", "/.kube/config",
-    "/proc/self/", "/proc/1/",
-    "/dev/tcp/", "/dev/udp/",
-    "c:\\windows\\system32", "c:\\windows\\syswow64",
+    "/etc/passwd",
+    "/etc/shadow",
+    "/etc/hosts",
+    "/etc/sudoers",
+    "/etc/ssh/",
+    "~/.ssh/",
+    "/.ssh/",
+    "~/.aws/",
+    "/.aws/credentials",
+    "~/.kube/config",
+    "/.kube/config",
+    "/proc/self/",
+    "/proc/1/",
+    "/dev/tcp/",
+    "/dev/udp/",
+    "c:\\windows\\system32",
+    "c:\\windows\\syswow64",
     "c:\\users\\administrator",
-    "web.config", ".htaccess", ".htpasswd",
-    ".env", ".git/config", ".npmrc",
-    "id_rsa", "id_ed25519", "authorized_keys",
+    "web.config",
+    ".htaccess",
+    ".htpasswd",
+    ".env",
+    ".git/config",
+    ".npmrc",
+    "id_rsa",
+    "id_ed25519",
+    "authorized_keys",
     "/var/run/docker.sock",
-    "/run/secrets/", "/var/run/secrets/kubernetes",
+    "/run/secrets/",
+    "/var/run/secrets/kubernetes",
 ]

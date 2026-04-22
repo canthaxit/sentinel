@@ -248,9 +248,7 @@ class SQLiteBackend(StorageBackend):
         return json.loads(row["data"])
 
     def delete_session(self, session_id: str) -> bool:
-        cur = self._conn.execute(
-            "DELETE FROM shield_sessions WHERE session_id = ?", (session_id,)
-        )
+        cur = self._conn.execute("DELETE FROM shield_sessions WHERE session_id = ?", (session_id,))
         self._conn.commit()
         return cur.rowcount > 0
 
@@ -357,10 +355,20 @@ class SQLiteBackend(StorageBackend):
         )
 
         known_keys = {
-            "scenario_id", "scenario_name", "category", "difficulty",
-            "result", "confidence", "response", "execution_time_ms",
-            "bypass_indicators_found", "safe_indicators_found",
-            "ml_score", "llm_verdict", "timestamp", "notes",
+            "scenario_id",
+            "scenario_name",
+            "category",
+            "difficulty",
+            "result",
+            "confidence",
+            "response",
+            "execution_time_ms",
+            "bypass_indicators_found",
+            "safe_indicators_found",
+            "ml_score",
+            "llm_verdict",
+            "timestamp",
+            "notes",
         }
         extra = {k: v for k, v in rd.items() if k not in known_keys}
 
@@ -546,10 +554,19 @@ class SQLiteBackend(StorageBackend):
 
     def save_job(self, job: dict[str, Any]) -> None:
         config_data = {
-            k: v for k, v in job.items()
-            if k not in (
-                "job_id", "name", "cron", "target_url", "enabled",
-                "one_time", "created_at", "last_run", "next_run",
+            k: v
+            for k, v in job.items()
+            if k
+            not in (
+                "job_id",
+                "name",
+                "cron",
+                "target_url",
+                "enabled",
+                "one_time",
+                "created_at",
+                "last_run",
+                "next_run",
             )
         }
         self._conn.execute(
@@ -585,9 +602,7 @@ class SQLiteBackend(StorageBackend):
         return [self._row_to_job(r) for r in rows]
 
     def delete_job(self, job_id: str) -> bool:
-        cur = self._conn.execute(
-            "DELETE FROM scheduler_jobs WHERE job_id = ?", (job_id,)
-        )
+        cur = self._conn.execute("DELETE FROM scheduler_jobs WHERE job_id = ?", (job_id,))
         self._conn.commit()
         return cur.rowcount > 0
 
@@ -658,15 +673,29 @@ class SQLiteBackend(StorageBackend):
                 ioc.get("source"),
                 json.dumps(ioc.get("mitre_techniques", [])),
                 json.dumps(ioc.get("owasp_categories", [])),
-                json.dumps({
-                    k: v for k, v in ioc.items()
-                    if k not in (
-                        "id", "type", "threat_type", "severity", "ml_score",
-                        "detection_method", "first_seen", "last_seen",
-                        "sighting_count", "payload_hash", "source",
-                        "mitre_techniques", "owasp_categories",
-                    )
-                }, default=str),
+                json.dumps(
+                    {
+                        k: v
+                        for k, v in ioc.items()
+                        if k
+                        not in (
+                            "id",
+                            "type",
+                            "threat_type",
+                            "severity",
+                            "ml_score",
+                            "detection_method",
+                            "first_seen",
+                            "last_seen",
+                            "sighting_count",
+                            "payload_hash",
+                            "source",
+                            "mitre_techniques",
+                            "owasp_categories",
+                        )
+                    },
+                    default=str,
+                ),
             ),
         )
         self._conn.commit()
@@ -722,11 +751,17 @@ class SQLiteBackend(StorageBackend):
             "by_threat_type": {},
         }
 
-        for row in conn.execute("SELECT type, COUNT(*) as cnt FROM threat_intel_iocs GROUP BY type"):
+        for row in conn.execute(
+            "SELECT type, COUNT(*) as cnt FROM threat_intel_iocs GROUP BY type"
+        ):
             stats["by_type"][row["type"] or "unknown"] = row["cnt"]
-        for row in conn.execute("SELECT severity, COUNT(*) as cnt FROM threat_intel_iocs GROUP BY severity"):
+        for row in conn.execute(
+            "SELECT severity, COUNT(*) as cnt FROM threat_intel_iocs GROUP BY severity"
+        ):
             stats["by_severity"][row["severity"] or "unknown"] = row["cnt"]
-        for row in conn.execute("SELECT threat_type, COUNT(*) as cnt FROM threat_intel_iocs GROUP BY threat_type"):
+        for row in conn.execute(
+            "SELECT threat_type, COUNT(*) as cnt FROM threat_intel_iocs GROUP BY threat_type"
+        ):
             stats["by_threat_type"][row["threat_type"] or "unknown"] = row["cnt"]
 
         return stats

@@ -117,10 +117,7 @@ class MemoryBackend(StorageBackend):
             sess = self._redteam_sessions.get(session_id)
             if not sess:
                 return None
-            results = [
-                dict(r) for r in self._redteam_results
-                if r.get("session_id") == session_id
-            ]
+            results = [dict(r) for r in self._redteam_results if r.get("session_id") == session_id]
             return {**sess, "results": results}
 
     def list_redteam_sessions(self) -> list[dict[str, Any]]:

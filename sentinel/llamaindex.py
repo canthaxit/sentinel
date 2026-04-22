@@ -44,6 +44,7 @@ def _get_event_types():
     llama-index installed."""
     try:
         from llama_index.core.callbacks.schema import CBEventType
+
         return CBEventType
     except ImportError:
         return None
@@ -92,13 +93,17 @@ class SentinelCallbackHandler:
         if not text or not text.strip():
             return
         result = self.shield.analyze(
-            text, session_id=self.session_id, source_ip=self.source_ip,
+            text,
+            session_id=self.session_id,
+            source_ip=self.source_ip,
         )
         self.last_result = result
         if result.blocked:
             log.warning(
                 "Shield blocked input (verdict=%s method=%s session=%s)",
-                result.verdict, result.detection_method, self.session_id,
+                result.verdict,
+                result.detection_method,
+                self.session_id,
             )
             if self.mode == "block":
                 raise ShieldBlockedError(

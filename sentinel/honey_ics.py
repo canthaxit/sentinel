@@ -59,6 +59,7 @@ EXCEPTION_FLAG = 0x80
 # Simulated register bank
 # ---------------------------------------------------------------------------
 
+
 def _build_default_registers() -> dict[int, int]:
     """Initialize holding registers with plausible ICS sensor values.
 
@@ -121,6 +122,7 @@ def _build_default_registers() -> dict[int, int]:
 # MODBUS TCP Handler
 # ---------------------------------------------------------------------------
 
+
 class _ModbusHandler(socketserver.BaseRequestHandler):
     """Handles a single MODBUS TCP connection.
 
@@ -169,9 +171,7 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
                 if header_data is None:
                     break
 
-                transaction_id, protocol_id, length, unit_id = struct.unpack(
-                    ">HHHB", header_data
-                )
+                transaction_id, protocol_id, length, unit_id = struct.unpack(">HHHB", header_data)
 
                 # Protocol ID must be 0 for MODBUS TCP
                 if protocol_id != 0:
@@ -196,9 +196,7 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
 
                 # Build MBAP response header
                 resp_length = len(response_pdu) + 1  # +1 for unit_id
-                resp_header = struct.pack(
-                    ">HHHB", transaction_id, 0, resp_length, unit_id
-                )
+                resp_header = struct.pack(">HHHB", transaction_id, 0, resp_length, unit_id)
 
                 self.request.sendall(resp_header + response_pdu)
 
@@ -221,54 +219,65 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
             data += chunk
         return data
 
-    def _process_pdu(self, fc: int, pdu: bytes,
-                     source_ip: str, source_port: int,
-                     unit_id: int) -> bytes:
+    def _process_pdu(
+        self, fc: int, pdu: bytes, source_ip: str, source_port: int, unit_id: int
+    ) -> bytes:
         """Dispatch to the correct function code handler."""
         if fc == FC_READ_HOLDING_REGISTERS:
-            return self._handle_read_holding_registers(
-                pdu, source_ip, source_port, unit_id
-            )
+            return self._handle_read_holding_registers(pdu, source_ip, source_port, unit_id)
         elif fc == FC_WRITE_SINGLE_REGISTER:
-            return self._handle_write_single_register(
-                pdu, source_ip, source_port, unit_id
-            )
+            return self._handle_write_single_register(pdu, source_ip, source_port, unit_id)
         else:
             # Unsupported function code -- return exception
             log.warning(
                 "[HONEY-MODBUS] Unsupported FC 0x%02X from %s:%d",
-                fc, source_ip, source_port,
+                fc,
+                source_ip,
+                source_port,
             )
             self._fire_trigger(
-                source_ip, source_port, "unsupported_fc",
-                fc, 0, 0,
+                source_ip,
+                source_port,
+                "unsupported_fc",
+                fc,
+                0,
+                0,
             )
             return struct.pack("BB", fc | EXCEPTION_FLAG, EXCEPTION_ILLEGAL_FUNCTION)
 
-    def _handle_read_holding_registers(self, pdu: bytes,
-                                        source_ip: str, source_port: int,
-                                        unit_id: int) -> bytes:
+    def _handle_read_holding_registers(
+        self, pdu: bytes, source_ip: str, source_port: int, unit_id: int
+    ) -> bytes:
         """FC 0x03: Read Holding Registers."""
         if len(pdu) < 5:
-            return struct.pack("BB", FC_READ_HOLDING_REGISTERS | EXCEPTION_FLAG,
-                               EXCEPTION_ILLEGAL_DATA_VALUE)
+            return struct.pack(
+                "BB", FC_READ_HOLDING_REGISTERS | EXCEPTION_FLAG, EXCEPTION_ILLEGAL_DATA_VALUE
+            )
 
         start_addr, quantity = struct.unpack(">HH", pdu[1:5])
 
         log.info(
             "[HONEY-MODBUS] FC03 Read %d registers @ %d from %s:%d",
-            quantity, start_addr, source_ip, source_port,
+            quantity,
+            start_addr,
+            source_ip,
+            source_port,
         )
 
         self._fire_trigger(
-            source_ip, source_port, "read_holding_registers",
-            FC_READ_HOLDING_REGISTERS, start_addr, quantity,
+            source_ip,
+            source_port,
+            "read_holding_registers",
+            FC_READ_HOLDING_REGISTERS,
+            start_addr,
+            quantity,
         )
 
         # Validate range
         if quantity < 1 or quantity > 125:
-            return struct.pack("BB", FC_READ_HOLDING_REGISTERS | EXCEPTION_FLAG,
-                               EXCEPTION_ILLEGAL_DATA_VALUE)
+            return struct.pack(
+                "BB", FC_READ_HOLDING_REGISTERS | EXCEPTION_FLAG, EXCEPTION_ILLEGAL_DATA_VALUE
+            )
 
         # Build response with register values
         byte_count = quantity * 2
@@ -281,24 +290,32 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
 
         return response
 
-    def _handle_write_single_register(self, pdu: bytes,
-                                       source_ip: str, source_port: int,
-                                       unit_id: int) -> bytes:
+    def _handle_write_single_register(
+        self, pdu: bytes, source_ip: str, source_port: int, unit_id: int
+    ) -> bytes:
         """FC 0x06: Write Single Register."""
         if len(pdu) < 5:
-            return struct.pack("BB", FC_WRITE_SINGLE_REGISTER | EXCEPTION_FLAG,
-                               EXCEPTION_ILLEGAL_DATA_VALUE)
+            return struct.pack(
+                "BB", FC_WRITE_SINGLE_REGISTER | EXCEPTION_FLAG, EXCEPTION_ILLEGAL_DATA_VALUE
+            )
 
         register_addr, register_value = struct.unpack(">HH", pdu[1:5])
 
         log.warning(
             "[HONEY-MODBUS] FC06 WRITE register %d = %d from %s:%d (ATTACK INDICATOR)",
-            register_addr, register_value, source_ip, source_port,
+            register_addr,
+            register_value,
+            source_ip,
+            source_port,
         )
 
         self._fire_trigger(
-            source_ip, source_port, "write_single_register",
-            FC_WRITE_SINGLE_REGISTER, register_addr, register_value,
+            source_ip,
+            source_port,
+            "write_single_register",
+            FC_WRITE_SINGLE_REGISTER,
+            register_addr,
+            register_value,
         )
 
         # Accept the write (deception: appear to comply)
@@ -306,12 +323,17 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
             self._registers[register_addr] = register_value & 0xFFFF
 
         # Echo back (standard MODBUS write response)
-        return struct.pack(">BHH", FC_WRITE_SINGLE_REGISTER,
-                           register_addr, register_value & 0xFFFF)
+        return struct.pack(">BHH", FC_WRITE_SINGLE_REGISTER, register_addr, register_value & 0xFFFF)
 
-    def _fire_trigger(self, source_ip: str, source_port: int,
-                      action: str, function_code: int,
-                      register_addr: int, value: int) -> None:
+    def _fire_trigger(
+        self,
+        source_ip: str,
+        source_port: int,
+        action: str,
+        function_code: int,
+        register_addr: int,
+        value: int,
+    ) -> None:
         """Record interaction and fire the trigger callback."""
         event = {
             "service": "modbus-tcp",
@@ -343,6 +365,7 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
 # Public Server Class
 # ---------------------------------------------------------------------------
 
+
 class HoneyModbusServer:
     """MODBUS TCP honey server simulating ICS/SCADA devices.
 
@@ -357,9 +380,12 @@ class HoneyModbusServer:
 
     _MAX_LOG = 50000
 
-    def __init__(self, port: int = 502,
-                 trigger_callback: Callable | None = None,
-                 max_log_entries: int = _MAX_LOG):
+    def __init__(
+        self,
+        port: int = 502,
+        trigger_callback: Callable | None = None,
+        max_log_entries: int = _MAX_LOG,
+    ):
         self.port = port
         self.trigger_callback = trigger_callback
         self._registers = _build_default_registers()

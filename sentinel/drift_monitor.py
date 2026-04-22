@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 try:
     import numpy as np
     from scipy import stats
+
     _HAS_DEPS = True
 except ImportError:
     np = None
@@ -34,8 +35,14 @@ _UTC = UTC
 class DriftMonitor:
     """Lightweight production drift detection for the prompt injection classifier."""
 
-    def __init__(self, window_size=1000, reference_scores=None, vocabulary=None,
-                 tool_call_threshold=50, delegation_depth_threshold=5):
+    def __init__(
+        self,
+        window_size=1000,
+        reference_scores=None,
+        vocabulary=None,
+        tool_call_threshold=50,
+        delegation_depth_threshold=5,
+    ):
         """
         Args:
             window_size: Rolling window of recent predictions to compare.
@@ -70,7 +77,9 @@ class DriftMonitor:
         self._hourly_history = deque(maxlen=168)  # 7 days of hourly buckets
 
         # Reference distribution (set from training data)
-        self._ref_scores = np.array(reference_scores) if (reference_scores is not None and _HAS_DEPS) else None
+        self._ref_scores = (
+            np.array(reference_scores) if (reference_scores is not None and _HAS_DEPS) else None
+        )
         self._vocabulary = set(vocabulary) if vocabulary else set()
 
         # Alert log
@@ -136,9 +145,7 @@ class DriftMonitor:
             if event_type == "tool_call":
                 self._tool_calls.append({"tool": tool_name, "ts": ts})
                 if tool_name:
-                    self._tool_call_counts[tool_name] = (
-                        self._tool_call_counts.get(tool_name, 0) + 1
-                    )
+                    self._tool_call_counts[tool_name] = self._tool_call_counts.get(tool_name, 0) + 1
             elif event_type == "delegation":
                 self._delegation_depths.append({"depth": depth, "ts": ts})
 
@@ -206,9 +213,11 @@ class DriftMonitor:
                 results["psi"] = {
                     "value": round(float(psi), 4),
                     "interpretation": (
-                        "stable" if psi < 0.10 else
-                        "moderate_drift" if psi < 0.25 else
-                        "significant_drift"
+                        "stable"
+                        if psi < 0.10
+                        else "moderate_drift"
+                        if psi < 0.25
+                        else "significant_drift"
                     ),
                     "drifted": psi_drifted,
                 }
@@ -236,10 +245,13 @@ class DriftMonitor:
                     "count_in_window": tc_count,
                     "threshold": self._tool_call_threshold,
                     "alert": tc_alert,
-                    "top_tools": dict(sorted(
-                        self._tool_call_counts.items(),
-                        key=lambda x: x[1], reverse=True,
-                    )[:5]),
+                    "top_tools": dict(
+                        sorted(
+                            self._tool_call_counts.items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )[:5]
+                    ),
                 }
                 if tc_alert:
                     any_drift = True
@@ -336,6 +348,7 @@ class DriftMonitor:
         resolved = pathlib.Path(path).resolve()
         # Validate path is within expected directories (prevent arbitrary file reads)
         import tempfile
+
         _allowed_parents = [
             pathlib.Path.cwd().resolve(),
             pathlib.Path(os.getenv("SENTINEL_DATA_DIR", "/app/data")).resolve(),

@@ -19,16 +19,18 @@ from . import config
 # ScanFinding dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclasses.dataclass
 class ScanFinding:
     """A single finding from a content scanner."""
-    scanner: str      # "secrets", "pii", "urls", "language", "gibberish", "refusal", "invisible_text"
-    category: str     # Sub-type: "aws_key", "ssn", "phishing_url", etc.
-    severity: str     # "critical", "high", "medium", "low", "info"
-    text_match: str   # Matched text (redacted for PII)
-    start: int        # Character offset in source text
-    end: int          # Character offset end
-    message: str      # Human-readable description
+
+    scanner: str  # "secrets", "pii", "urls", "language", "gibberish", "refusal", "invisible_text"
+    category: str  # Sub-type: "aws_key", "ssn", "phishing_url", etc.
+    severity: str  # "critical", "high", "medium", "low", "info"
+    text_match: str  # Matched text (redacted for PII)
+    start: int  # Character offset in source text
+    end: int  # Character offset end
+    message: str  # Human-readable description
 
 
 _SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
@@ -39,23 +41,32 @@ _SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 # ---------------------------------------------------------------------------
 
 _SECRET_PATTERNS = [
-    ("aws_access_key", "critical", re.compile(r'AKIA[0-9A-Z]{16}')),
-    ("aws_secret_key", "critical", re.compile(
-        r'(?i)aws_secret_access_key\s*[=:]\s*[A-Za-z0-9/+=]{40}')),
-    ("github_token", "critical", re.compile(r'gh[pousr]_[A-Za-z0-9_]{36,}')),
-    ("slack_token", "critical", re.compile(r'xox[baprs]-[0-9a-zA-Z-]+')),
-    ("private_key", "critical", re.compile(
-        r'-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----')),
-    ("database_url", "critical", re.compile(
-        r'(?i)(?:postgres|mysql|mongodb|redis)://[^\s\'"]+', re.ASCII)),
-    ("jwt_token", "high", re.compile(
-        r'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+')),
-    ("generic_api_key", "high", re.compile(
-        r'(?i)(?:api[_-]?key|apikey|api[_-]?secret)\s*[=:]\s*[\'"]?[A-Za-z0-9_\-]{20,}')),
-    ("bearer_token", "high", re.compile(
-        r'(?i)bearer\s+[A-Za-z0-9_\-.~+/]+=*')),
-    ("basic_auth", "high", re.compile(
-        r'(?i)basic\s+[A-Za-z0-9+/]{20,}={0,2}')),
+    ("aws_access_key", "critical", re.compile(r"AKIA[0-9A-Z]{16}")),
+    (
+        "aws_secret_key",
+        "critical",
+        re.compile(r"(?i)aws_secret_access_key\s*[=:]\s*[A-Za-z0-9/+=]{40}"),
+    ),
+    ("github_token", "critical", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
+    ("slack_token", "critical", re.compile(r"xox[baprs]-[0-9a-zA-Z-]+")),
+    ("private_key", "critical", re.compile(r"-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----")),
+    (
+        "database_url",
+        "critical",
+        re.compile(r'(?i)(?:postgres|mysql|mongodb|redis)://[^\s\'"]+', re.ASCII),
+    ),
+    (
+        "jwt_token",
+        "high",
+        re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+"),
+    ),
+    (
+        "generic_api_key",
+        "high",
+        re.compile(r'(?i)(?:api[_-]?key|apikey|api[_-]?secret)\s*[=:]\s*[\'"]?[A-Za-z0-9_\-]{20,}'),
+    ),
+    ("bearer_token", "high", re.compile(r"(?i)bearer\s+[A-Za-z0-9_\-.~+/]+=*")),
+    ("basic_auth", "high", re.compile(r"(?i)basic\s+[A-Za-z0-9+/]{20,}={0,2}")),
 ]
 
 
@@ -64,21 +75,24 @@ def scan_secrets(text: str) -> list[ScanFinding]:
     findings: list[ScanFinding] = []
     for category, severity, pattern in _SECRET_PATTERNS:
         for m in pattern.finditer(text):
-            findings.append(ScanFinding(
-                scanner="secrets",
-                category=category,
-                severity=severity,
-                text_match=m.group()[:12] + "..." if len(m.group()) > 15 else m.group(),
-                start=m.start(),
-                end=m.end(),
-                message=f"Possible {category.replace('_', ' ')} detected",
-            ))
+            findings.append(
+                ScanFinding(
+                    scanner="secrets",
+                    category=category,
+                    severity=severity,
+                    text_match=m.group()[:12] + "..." if len(m.group()) > 15 else m.group(),
+                    start=m.start(),
+                    end=m.end(),
+                    message=f"Possible {category.replace('_', ' ')} detected",
+                )
+            )
     return findings
 
 
 # ---------------------------------------------------------------------------
 # Scanner 2: PII
 # ---------------------------------------------------------------------------
+
 
 def _luhn_check(number_str: str) -> bool:
     """Validate a credit card number using the Luhn algorithm."""
@@ -96,15 +110,16 @@ def _luhn_check(number_str: str) -> bool:
 
 
 _PII_PATTERNS = [
-    ("ssn", "critical", re.compile(r'\b\d{3}-\d{2}-\d{4}\b')),
-    ("credit_card", "critical", re.compile(r'\b(?:\d{4}[- ]?){3}\d{4}\b')),
-    ("email", "medium", re.compile(
-        r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')),
-    ("phone", "medium", re.compile(
-        r'\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b')),
-    ("date_of_birth", "medium", re.compile(
-        r'(?i)\b(?:dob|date of birth|born)\s*[:\s]\s*\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}\b')),
-    ("ip_address", "low", re.compile(r'\b(?:\d{1,3}\.){3}\d{1,3}\b')),
+    ("ssn", "critical", re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
+    ("credit_card", "critical", re.compile(r"\b(?:\d{4}[- ]?){3}\d{4}\b")),
+    ("email", "medium", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
+    ("phone", "medium", re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b")),
+    (
+        "date_of_birth",
+        "medium",
+        re.compile(r"(?i)\b(?:dob|date of birth|born)\s*[:\s]\s*\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}\b"),
+    ),
+    ("ip_address", "low", re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
 ]
 
 _SKIP_SSN = {"000-00-0000", "999-99-9999", "123-45-6789"}
@@ -116,7 +131,7 @@ def _redact(text: str, category: str) -> str:
     if category == "ssn":
         return "***-**-" + text[-4:]
     if category == "credit_card":
-        digits = re.sub(r'\D', '', text)
+        digits = re.sub(r"\D", "", text)
         return "****-****-****-" + digits[-4:]
     if category == "email":
         parts = text.split("@")
@@ -135,21 +150,23 @@ def scan_pii(text: str) -> list[ScanFinding]:
                 continue
             # Credit card: Luhn validation
             if category == "credit_card":
-                digits_only = re.sub(r'\D', '', matched)
+                digits_only = re.sub(r"\D", "", matched)
                 if not _luhn_check(digits_only):
                     continue
             # IP address: skip localhost/broadcast
             if category == "ip_address" and matched in _SKIP_IPS:
                 continue
-            findings.append(ScanFinding(
-                scanner="pii",
-                category=category,
-                severity=severity,
-                text_match=_redact(matched, category),
-                start=m.start(),
-                end=m.end(),
-                message=f"Possible {category.replace('_', ' ')} detected",
-            ))
+            findings.append(
+                ScanFinding(
+                    scanner="pii",
+                    category=category,
+                    severity=severity,
+                    text_match=_redact(matched, category),
+                    start=m.start(),
+                    end=m.end(),
+                    message=f"Possible {category.replace('_', ' ')} detected",
+                )
+            )
     return findings
 
 
@@ -158,19 +175,19 @@ def scan_pii(text: str) -> list[ScanFinding]:
 # ---------------------------------------------------------------------------
 
 _INVISIBLE_CHARS = {
-    '\u200b': ("zero_width_space", "high"),
-    '\u200c': ("zero_width_non_joiner", "high"),
-    '\u200d': ("zero_width_joiner", "high"),
-    '\ufeff': ("byte_order_mark", "medium"),
-    '\u202e': ("rtl_override", "high"),
-    '\u202d': ("ltr_override", "high"),
-    '\u00ad': ("soft_hyphen", "medium"),
-    '\u2060': ("word_joiner", "medium"),
+    "\u200b": ("zero_width_space", "high"),
+    "\u200c": ("zero_width_non_joiner", "high"),
+    "\u200d": ("zero_width_joiner", "high"),
+    "\ufeff": ("byte_order_mark", "medium"),
+    "\u202e": ("rtl_override", "high"),
+    "\u202d": ("ltr_override", "high"),
+    "\u00ad": ("soft_hyphen", "medium"),
+    "\u2060": ("word_joiner", "medium"),
 }
 
 # Cyrillic lookalikes for Latin characters
-_CYRILLIC_LOOKALIKES = set('\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u0458\u04bb')
-_LATIN_CHARS = set('aeopscuxijh')
+_CYRILLIC_LOOKALIKES = set("\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u0458\u04bb")
+_LATIN_CHARS = set("aeopscuxijh")
 
 
 def scan_invisible_text(text: str) -> list[ScanFinding]:
@@ -181,15 +198,17 @@ def scan_invisible_text(text: str) -> list[ScanFinding]:
     for i, ch in enumerate(text):
         if ch in _INVISIBLE_CHARS:
             category, severity = _INVISIBLE_CHARS[ch]
-            findings.append(ScanFinding(
-                scanner="invisible_text",
-                category=category,
-                severity=severity,
-                text_match=f"U+{ord(ch):04X}",
-                start=i,
-                end=i + 1,
-                message=f"Invisible character {category.replace('_', ' ')} at position {i}",
-            ))
+            findings.append(
+                ScanFinding(
+                    scanner="invisible_text",
+                    category=category,
+                    severity=severity,
+                    text_match=f"U+{ord(ch):04X}",
+                    start=i,
+                    end=i + 1,
+                    message=f"Invisible character {category.replace('_', ' ')} at position {i}",
+                )
+            )
 
     # Check for homoglyph mixing (Cyrillic + Latin in same word)
     has_latin = False
@@ -203,15 +222,17 @@ def scan_invisible_text(text: str) -> list[ScanFinding]:
             break
 
     if has_latin and has_cyrillic:
-        findings.append(ScanFinding(
-            scanner="invisible_text",
-            category="homoglyph",
-            severity="high",
-            text_match="mixed Latin/Cyrillic scripts",
-            start=0,
-            end=len(text),
-            message="Text contains mixed Latin and Cyrillic lookalike characters (possible homoglyph attack)",
-        ))
+        findings.append(
+            ScanFinding(
+                scanner="invisible_text",
+                category="homoglyph",
+                severity="high",
+                text_match="mixed Latin/Cyrillic scripts",
+                start=0,
+                end=len(text),
+                message="Text contains mixed Latin and Cyrillic lookalike characters (possible homoglyph attack)",
+            )
+        )
 
     return findings
 
@@ -221,12 +242,12 @@ def scan_invisible_text(text: str) -> list[ScanFinding]:
 # ---------------------------------------------------------------------------
 
 _URL_PATTERN = re.compile(r'https?://[^\s<>"\')\]]+|www\.[^\s<>"\')\]]+')
-_IP_URL_PATTERN = re.compile(r'https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
-_DATA_URI_PATTERN = re.compile(r'data:[a-zA-Z]+/[a-zA-Z]+[;,]', re.IGNORECASE)
+_IP_URL_PATTERN = re.compile(r"https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+_DATA_URI_PATTERN = re.compile(r"data:[a-zA-Z]+/[a-zA-Z]+[;,]", re.IGNORECASE)
 _PHISHING_SUBDOMAIN = re.compile(
-    r'(?:login|signin|secure|account|verify|update|confirm|banking)'
-    r'[-.]'
-    r'(?:paypal|google|microsoft|apple|amazon|facebook|netflix|bank)',
+    r"(?:login|signin|secure|account|verify|update|confirm|banking)"
+    r"[-.]"
+    r"(?:paypal|google|microsoft|apple|amazon|facebook|netflix|bank)",
     re.IGNORECASE,
 )
 
@@ -237,11 +258,17 @@ def scan_urls(text: str) -> list[ScanFinding]:
 
     # Data URIs
     for m in _DATA_URI_PATTERN.finditer(text):
-        findings.append(ScanFinding(
-            scanner="urls", category="data_uri", severity="high",
-            text_match=m.group(), start=m.start(), end=m.end(),
-            message="Data URI detected (potential XSS vector)",
-        ))
+        findings.append(
+            ScanFinding(
+                scanner="urls",
+                category="data_uri",
+                severity="high",
+                text_match=m.group(),
+                start=m.start(),
+                end=m.end(),
+                message="Data URI detected (potential XSS vector)",
+            )
+        )
 
     for m in _URL_PATTERN.finditer(text):
         url = m.group()
@@ -249,15 +276,21 @@ def scan_urls(text: str) -> list[ScanFinding]:
 
         # IP-based URLs
         if _IP_URL_PATTERN.match(url):
-            findings.append(ScanFinding(
-                scanner="urls", category="ip_based_url", severity="high",
-                text_match=url, start=m.start(), end=m.end(),
-                message="IP-based URL detected",
-            ))
+            findings.append(
+                ScanFinding(
+                    scanner="urls",
+                    category="ip_based_url",
+                    severity="high",
+                    text_match=url,
+                    start=m.start(),
+                    end=m.end(),
+                    message="IP-based URL detected",
+                )
+            )
             continue
 
         # Extract domain for further checks
-        domain_match = re.search(r'(?:https?://|www\.)([\w.-]+)', url_lower)
+        domain_match = re.search(r"(?:https?://|www\.)([\w.-]+)", url_lower)
         if not domain_match:
             continue
         domain = domain_match.group(1)
@@ -265,38 +298,62 @@ def scan_urls(text: str) -> list[ScanFinding]:
         # Suspicious TLDs
         for tld in config.SUSPICIOUS_TLDS:
             if domain.endswith(tld):
-                findings.append(ScanFinding(
-                    scanner="urls", category="suspicious_tld", severity="medium",
-                    text_match=url, start=m.start(), end=m.end(),
-                    message=f"URL uses suspicious TLD: {tld}",
-                ))
+                findings.append(
+                    ScanFinding(
+                        scanner="urls",
+                        category="suspicious_tld",
+                        severity="medium",
+                        text_match=url,
+                        start=m.start(),
+                        end=m.end(),
+                        message=f"URL uses suspicious TLD: {tld}",
+                    )
+                )
                 break
 
         # URL shorteners
         for shortener in config.URL_SHORTENERS:
             if domain == shortener or domain.endswith("." + shortener):
-                findings.append(ScanFinding(
-                    scanner="urls", category="url_shortener", severity="medium",
-                    text_match=url, start=m.start(), end=m.end(),
-                    message=f"URL shortener detected: {shortener}",
-                ))
+                findings.append(
+                    ScanFinding(
+                        scanner="urls",
+                        category="url_shortener",
+                        severity="medium",
+                        text_match=url,
+                        start=m.start(),
+                        end=m.end(),
+                        message=f"URL shortener detected: {shortener}",
+                    )
+                )
                 break
 
         # Phishing subdomains
         if _PHISHING_SUBDOMAIN.search(domain):
-            findings.append(ScanFinding(
-                scanner="urls", category="phishing_subdomain", severity="high",
-                text_match=url, start=m.start(), end=m.end(),
-                message="URL contains phishing-style subdomain pattern",
-            ))
+            findings.append(
+                ScanFinding(
+                    scanner="urls",
+                    category="phishing_subdomain",
+                    severity="high",
+                    text_match=url,
+                    start=m.start(),
+                    end=m.end(),
+                    message="URL contains phishing-style subdomain pattern",
+                )
+            )
 
         # Excessively long URLs
         if len(url) > 200:
-            findings.append(ScanFinding(
-                scanner="urls", category="long_url", severity="medium",
-                text_match=url[:50] + "...", start=m.start(), end=m.end(),
-                message=f"Excessively long URL ({len(url)} chars)",
-            ))
+            findings.append(
+                ScanFinding(
+                    scanner="urls",
+                    category="long_url",
+                    severity="medium",
+                    text_match=url[:50] + "...",
+                    start=m.start(),
+                    end=m.end(),
+                    message=f"Excessively long URL ({len(url)} chars)",
+                )
+            )
 
     return findings
 
@@ -306,13 +363,13 @@ def scan_urls(text: str) -> list[ScanFinding]:
 # ---------------------------------------------------------------------------
 
 _SCRIPT_RANGES = {
-    "latin": lambda c: ('\u0041' <= c <= '\u024F'),
-    "cyrillic": lambda c: ('\u0400' <= c <= '\u04FF'),
-    "cjk": lambda c: ('\u4E00' <= c <= '\u9FFF') or ('\u3400' <= c <= '\u4DBF'),
-    "arabic": lambda c: ('\u0600' <= c <= '\u06FF'),
-    "devanagari": lambda c: ('\u0900' <= c <= '\u097F'),
-    "hangul": lambda c: ('\uAC00' <= c <= '\uD7AF') or ('\u1100' <= c <= '\u11FF'),
-    "thai": lambda c: ('\u0E00' <= c <= '\u0E7F'),
+    "latin": lambda c: ("\u0041" <= c <= "\u024f"),
+    "cyrillic": lambda c: ("\u0400" <= c <= "\u04ff"),
+    "cjk": lambda c: ("\u4e00" <= c <= "\u9fff") or ("\u3400" <= c <= "\u4dbf"),
+    "arabic": lambda c: ("\u0600" <= c <= "\u06ff"),
+    "devanagari": lambda c: ("\u0900" <= c <= "\u097f"),
+    "hangul": lambda c: ("\uac00" <= c <= "\ud7af") or ("\u1100" <= c <= "\u11ff"),
+    "thai": lambda c: ("\u0e00" <= c <= "\u0e7f"),
 }
 
 
@@ -341,15 +398,17 @@ def scan_language(text: str, allowed_languages: set[str] | None = None) -> list[
 
     if dominant_script not in allowed_languages:
         pct = counts[dominant_script] / total * 100
-        return [ScanFinding(
-            scanner="language",
-            category=dominant_script,
-            severity="medium",
-            text_match=f"{dominant_script} ({pct:.0f}%)",
-            start=0,
-            end=len(text),
-            message=f"Text uses {dominant_script} script which is not in allowed languages: {allowed_languages}",
-        )]
+        return [
+            ScanFinding(
+                scanner="language",
+                category=dominant_script,
+                severity="medium",
+                text_match=f"{dominant_script} ({pct:.0f}%)",
+                start=0,
+                end=len(text),
+                message=f"Text uses {dominant_script} script which is not in allowed languages: {allowed_languages}",
+            )
+        ]
 
     return []
 
@@ -359,31 +418,213 @@ def scan_language(text: str, allowed_languages: set[str] | None = None) -> list[
 # ---------------------------------------------------------------------------
 
 _COMMON_WORDS = {
-    "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-    "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-    "this", "but", "his", "by", "from", "they", "we", "say", "her",
-    "she", "or", "an", "will", "my", "one", "all", "would", "there",
-    "their", "what", "so", "up", "out", "if", "about", "who", "get",
-    "which", "go", "me", "when", "make", "can", "like", "time", "no",
-    "just", "him", "know", "take", "people", "into", "year", "your",
-    "good", "some", "could", "them", "see", "other", "than", "then",
-    "now", "look", "only", "come", "its", "over", "think", "also",
-    "back", "after", "use", "two", "how", "our", "work", "first",
-    "well", "way", "even", "new", "want", "because", "any", "these",
-    "give", "day", "most", "us", "is", "are", "was", "were", "been",
-    "has", "had", "did", "does", "more", "very", "much", "too", "here",
-    "where", "why", "should", "each", "still", "between", "high", "long",
-    "made", "find", "own", "while", "may", "must", "tell", "through",
-    "before", "right", "old", "every", "same", "off", "need", "house",
-    "let", "keep", "world", "never", "small", "last", "hand", "under",
-    "turn", "ask", "try", "large", "set", "big", "help", "line", "end",
-    "point", "run", "move", "live", "night", "call", "open", "start",
-    "might", "show", "part", "place", "life", "number", "name", "put",
-    "read", "city", "play", "again", "many", "next", "few", "head",
-    "left", "another", "side", "children", "water", "without", "being",
-    "once", "done", "home", "school", "system", "data", "test", "user",
-    "file", "code", "message", "error", "please", "thank", "hello",
-    "yes", "ok", "sure", "question", "answer", "information",
+    "the",
+    "be",
+    "to",
+    "of",
+    "and",
+    "a",
+    "in",
+    "that",
+    "have",
+    "i",
+    "it",
+    "for",
+    "not",
+    "on",
+    "with",
+    "he",
+    "as",
+    "you",
+    "do",
+    "at",
+    "this",
+    "but",
+    "his",
+    "by",
+    "from",
+    "they",
+    "we",
+    "say",
+    "her",
+    "she",
+    "or",
+    "an",
+    "will",
+    "my",
+    "one",
+    "all",
+    "would",
+    "there",
+    "their",
+    "what",
+    "so",
+    "up",
+    "out",
+    "if",
+    "about",
+    "who",
+    "get",
+    "which",
+    "go",
+    "me",
+    "when",
+    "make",
+    "can",
+    "like",
+    "time",
+    "no",
+    "just",
+    "him",
+    "know",
+    "take",
+    "people",
+    "into",
+    "year",
+    "your",
+    "good",
+    "some",
+    "could",
+    "them",
+    "see",
+    "other",
+    "than",
+    "then",
+    "now",
+    "look",
+    "only",
+    "come",
+    "its",
+    "over",
+    "think",
+    "also",
+    "back",
+    "after",
+    "use",
+    "two",
+    "how",
+    "our",
+    "work",
+    "first",
+    "well",
+    "way",
+    "even",
+    "new",
+    "want",
+    "because",
+    "any",
+    "these",
+    "give",
+    "day",
+    "most",
+    "us",
+    "is",
+    "are",
+    "was",
+    "were",
+    "been",
+    "has",
+    "had",
+    "did",
+    "does",
+    "more",
+    "very",
+    "much",
+    "too",
+    "here",
+    "where",
+    "why",
+    "should",
+    "each",
+    "still",
+    "between",
+    "high",
+    "long",
+    "made",
+    "find",
+    "own",
+    "while",
+    "may",
+    "must",
+    "tell",
+    "through",
+    "before",
+    "right",
+    "old",
+    "every",
+    "same",
+    "off",
+    "need",
+    "house",
+    "let",
+    "keep",
+    "world",
+    "never",
+    "small",
+    "last",
+    "hand",
+    "under",
+    "turn",
+    "ask",
+    "try",
+    "large",
+    "set",
+    "big",
+    "help",
+    "line",
+    "end",
+    "point",
+    "run",
+    "move",
+    "live",
+    "night",
+    "call",
+    "open",
+    "start",
+    "might",
+    "show",
+    "part",
+    "place",
+    "life",
+    "number",
+    "name",
+    "put",
+    "read",
+    "city",
+    "play",
+    "again",
+    "many",
+    "next",
+    "few",
+    "head",
+    "left",
+    "another",
+    "side",
+    "children",
+    "water",
+    "without",
+    "being",
+    "once",
+    "done",
+    "home",
+    "school",
+    "system",
+    "data",
+    "test",
+    "user",
+    "file",
+    "code",
+    "message",
+    "error",
+    "please",
+    "thank",
+    "hello",
+    "yes",
+    "ok",
+    "sure",
+    "question",
+    "answer",
+    "information",
 }
 
 _VOWELS = set("aeiouAEIOU")
@@ -469,19 +710,29 @@ def scan_gibberish(text: str) -> list[ScanFinding]:
     overall = sum(scores) / len(scores)
 
     if overall >= config.GIBBERISH_THRESHOLD_HIGH:
-        return [ScanFinding(
-            scanner="gibberish", category="adversarial_text", severity="high",
-            text_match=text[:40] + "..." if len(text) > 40 else text,
-            start=0, end=len(text),
-            message=f"Text appears to be gibberish/adversarial (score: {overall:.2f})",
-        )]
+        return [
+            ScanFinding(
+                scanner="gibberish",
+                category="adversarial_text",
+                severity="high",
+                text_match=text[:40] + "..." if len(text) > 40 else text,
+                start=0,
+                end=len(text),
+                message=f"Text appears to be gibberish/adversarial (score: {overall:.2f})",
+            )
+        ]
     elif overall >= config.GIBBERISH_THRESHOLD_MEDIUM:
-        return [ScanFinding(
-            scanner="gibberish", category="adversarial_text", severity="medium",
-            text_match=text[:40] + "..." if len(text) > 40 else text,
-            start=0, end=len(text),
-            message=f"Text may be gibberish/adversarial (score: {overall:.2f})",
-        )]
+        return [
+            ScanFinding(
+                scanner="gibberish",
+                category="adversarial_text",
+                severity="medium",
+                text_match=text[:40] + "..." if len(text) > 40 else text,
+                start=0,
+                end=len(text),
+                message=f"Text may be gibberish/adversarial (score: {overall:.2f})",
+            )
+        ]
 
     return []
 
@@ -491,16 +742,32 @@ def scan_gibberish(text: str) -> list[ScanFinding]:
 # ---------------------------------------------------------------------------
 
 _REFUSAL_INDICATORS = [
-    "i cannot", "i can't", "i'm unable", "i'm sorry but i",
-    "i must decline", "i will not", "i won't", "i shouldn't",
-    "i must not", "not appropriate", "against my guidelines",
-    "violates my policy", "as an ai", "as a language model",
+    "i cannot",
+    "i can't",
+    "i'm unable",
+    "i'm sorry but i",
+    "i must decline",
+    "i will not",
+    "i won't",
+    "i shouldn't",
+    "i must not",
+    "not appropriate",
+    "against my guidelines",
+    "violates my policy",
+    "as an ai",
+    "as a language model",
 ]
 
 _COMPLIANCE_INDICATORS = [
-    "here's how", "here is how", "the password is", "the secret is",
-    "sure, i can", "of course", "certainly, here",
-    "step 1:", "first, you need to",
+    "here's how",
+    "here is how",
+    "the password is",
+    "the secret is",
+    "sure, i can",
+    "of course",
+    "certainly, here",
+    "step 1:",
+    "first, you need to",
 ]
 
 
@@ -513,17 +780,22 @@ def scan_refusal(text: str) -> list[ScanFinding]:
     # Code blocks with implementation
     if "```" in text and not has_compliance:
         # Check if there's actual code (not just an empty block)
-        code_content = re.search(r'```\w*\n(.+?)```', text, re.DOTALL)
+        code_content = re.search(r"```\w*\n(.+?)```", text, re.DOTALL)
         if code_content and len(code_content.group(1).strip()) > 20:
             has_compliance = True
 
     if has_compliance:
-        return [ScanFinding(
-            scanner="refusal", category="compliance", severity="info",
-            text_match=text[:60] + "..." if len(text) > 60 else text,
-            start=0, end=len(text),
-            message="LLM response appears to comply with the request",
-        )]
+        return [
+            ScanFinding(
+                scanner="refusal",
+                category="compliance",
+                severity="info",
+                text_match=text[:60] + "..." if len(text) > 60 else text,
+                start=0,
+                end=len(text),
+                message="LLM response appears to comply with the request",
+            )
+        ]
 
     has_refusal = any(p in text_lower for p in _REFUSAL_INDICATORS)
     # Also check config refusal patterns (uppercase)
@@ -532,19 +804,29 @@ def scan_refusal(text: str) -> list[ScanFinding]:
         has_refusal = any(p in text_upper for p in config.REFUSAL_PATTERNS)
 
     if has_refusal:
-        return [ScanFinding(
-            scanner="refusal", category="refusal", severity="info",
-            text_match=text[:60] + "..." if len(text) > 60 else text,
-            start=0, end=len(text),
-            message="LLM response appears to refuse the request",
-        )]
+        return [
+            ScanFinding(
+                scanner="refusal",
+                category="refusal",
+                severity="info",
+                text_match=text[:60] + "..." if len(text) > 60 else text,
+                start=0,
+                end=len(text),
+                message="LLM response appears to refuse the request",
+            )
+        ]
 
-    return [ScanFinding(
-        scanner="refusal", category="ambiguous", severity="info",
-        text_match=text[:60] + "..." if len(text) > 60 else text,
-        start=0, end=len(text),
-        message="LLM response classification is ambiguous",
-    )]
+    return [
+        ScanFinding(
+            scanner="refusal",
+            category="ambiguous",
+            severity="info",
+            text_match=text[:60] + "..." if len(text) > 60 else text,
+            start=0,
+            end=len(text),
+            message="LLM response classification is ambiguous",
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -552,12 +834,24 @@ def scan_refusal(text: str) -> list[ScanFinding]:
 # ---------------------------------------------------------------------------
 
 _HEDGE_PHRASES = [
-    "it is important to note", "it's worth noting", "it should be noted",
-    "it is worth mentioning", "it's important to", "one might consider",
-    "it is generally", "it is recommended", "it may be helpful",
-    "it could be argued", "on the other hand", "in conclusion",
-    "however, it is", "furthermore,", "additionally,", "moreover,",
-    "nevertheless,", "in this context",
+    "it is important to note",
+    "it's worth noting",
+    "it should be noted",
+    "it is worth mentioning",
+    "it's important to",
+    "one might consider",
+    "it is generally",
+    "it is recommended",
+    "it may be helpful",
+    "it could be argued",
+    "on the other hand",
+    "in conclusion",
+    "however, it is",
+    "furthermore,",
+    "additionally,",
+    "moreover,",
+    "nevertheless,",
+    "in this context",
 ]
 
 
@@ -578,7 +872,7 @@ def scan_ai_generated(text: str, threshold: float = 0.65) -> list[ScanFinding]:
     if len(text) < 100:
         return []
 
-    sentences = re.split(r'[.!?\n]+', text)
+    sentences = re.split(r"[.!?\n]+", text)
     sentences = [s.strip() for s in sentences if len(s.strip()) > 5]
     if len(sentences) < 3:
         return []
@@ -594,7 +888,7 @@ def scan_ai_generated(text: str, threshold: float = 0.65) -> list[ScanFinding]:
     mean_len = sum(lengths) / len(lengths)
     if mean_len > 0:
         variance = sum((length - mean_len) ** 2 for length in lengths) / len(lengths)
-        cv = (variance ** 0.5) / mean_len  # coefficient of variation
+        cv = (variance**0.5) / mean_len  # coefficient of variation
         # Low CV = very uniform = likely AI; humans have CV > 0.5 typically
         if cv < 0.25:
             scores.append(1.0)
@@ -628,7 +922,7 @@ def scan_ai_generated(text: str, threshold: float = 0.65) -> list[ScanFinding]:
         scores.append(0.0)
 
     # 4. Repetitive phrasing (bigram repetition rate)
-    bigrams = [f"{words[i]} {words[i+1]}" for i in range(len(words) - 1)]
+    bigrams = [f"{words[i]} {words[i + 1]}" for i in range(len(words) - 1)]
     if bigrams:
         unique_bigrams = set(bigrams)
         bigram_repeat_rate = 1.0 - (len(unique_bigrams) / len(bigrams))
@@ -658,15 +952,17 @@ def scan_ai_generated(text: str, threshold: float = 0.65) -> list[ScanFinding]:
     overall = sum(scores) / len(scores) if scores else 0
 
     if overall >= threshold:
-        return [ScanFinding(
-            scanner="ai_generated",
-            category="llm_authored",
-            severity="medium",
-            text_match=text[:60] + "..." if len(text) > 60 else text,
-            start=0,
-            end=len(text),
-            message=f"Text appears LLM-authored (score: {overall:.2f})",
-        )]
+        return [
+            ScanFinding(
+                scanner="ai_generated",
+                category="llm_authored",
+                severity="medium",
+                text_match=text[:60] + "..." if len(text) > 60 else text,
+                start=0,
+                end=len(text),
+                message=f"Text appears LLM-authored (score: {overall:.2f})",
+            )
+        ]
 
     return []
 

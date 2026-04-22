@@ -8,6 +8,7 @@ from sentinel.llm_judge import LLMJudge
 # Provider: AWS Bedrock
 # ============================================================================
 
+
 class BedrockJudge(LLMJudge):
     """AWS Bedrock judge. Requires: pip install boto3"""
 
@@ -22,9 +23,7 @@ class BedrockJudge(LLMJudge):
             try:
                 import boto3
             except ImportError:
-                raise ImportError(
-                    "boto3 package required. Install with: pip install boto3>=1.34.0"
-                )
+                raise ImportError("boto3 package required. Install with: pip install boto3>=1.34.0")
             self._client = boto3.client(
                 "bedrock-runtime",
                 region_name=self.region,
@@ -33,16 +32,19 @@ class BedrockJudge(LLMJudge):
 
     def _call_llm(self, user_input):
         import json
+
         client = self._get_client()
 
-        body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 10,
-            "system": self.system_prompt,
-            "messages": [
-                {"role": "user", "content": user_input},
-            ],
-        })
+        body = json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 10,
+                "system": self.system_prompt,
+                "messages": [
+                    {"role": "user", "content": user_input},
+                ],
+            }
+        )
 
         response = client.invoke_model(
             modelId=self.model,

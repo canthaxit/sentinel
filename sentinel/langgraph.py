@@ -61,8 +61,7 @@ def _extract_last_message_content(state: dict[str, Any]) -> str | None:
     return str(last)
 
 
-def _screen(shield: Any, text: str, mode: str,
-            session_id: str, source_ip: str) -> Any:
+def _screen(shield: Any, text: str, mode: str, session_id: str, source_ip: str) -> Any:
     """Run text through Shield and raise or log depending on mode."""
     if not text or not text.strip():
         return None
@@ -70,7 +69,9 @@ def _screen(shield: Any, text: str, mode: str,
     if result.blocked:
         log.warning(
             "Shield blocked input (verdict=%s method=%s session=%s)",
-            result.verdict, result.detection_method, session_id,
+            result.verdict,
+            result.detection_method,
+            session_id,
         )
         if mode == "block":
             raise ShieldBlockedError(

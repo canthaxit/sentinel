@@ -60,9 +60,7 @@ def create_llm_judge(provider=None, **kwargs):
     cls = _PROVIDERS.get(provider)
     if cls is None:
         available = ", ".join(sorted(_PROVIDERS.keys()))
-        raise ValueError(
-            f"Unknown LLM provider: '{provider}'. Available: {available}"
-        )
+        raise ValueError(f"Unknown LLM provider: '{provider}'. Available: {available}")
 
     log.info("Initializing provider: %s", provider)
     return cls(**kwargs)

@@ -19,6 +19,7 @@ from typing import Any
 _KEY_PEPPER = os.getenv("SENTINEL_KEY_PEPPER", "")
 if not _KEY_PEPPER:
     import logging as _pepper_log
+
     if os.getenv("SENTINEL_ALLOW_DEFAULT_PEPPER", "").lower() in ("1", "true"):
         _KEY_PEPPER = "sentinel-default-pepper-change-me"
         _pepper_log.getLogger(__name__).critical(
@@ -51,9 +52,7 @@ class Tenant:
 def _hash_key(api_key: str, salt: str = "") -> str:
     """PBKDF2-HMAC-SHA256 hash of an API key with salt and server-side pepper (600k iterations)."""
     msg = (salt + api_key).encode("utf-8")
-    return hashlib.pbkdf2_hmac(
-        "sha256", msg, _KEY_PEPPER.encode("utf-8"), iterations=600_000
-    ).hex()
+    return hashlib.pbkdf2_hmac("sha256", msg, _KEY_PEPPER.encode("utf-8"), iterations=600_000).hex()
 
 
 def _generate_salt() -> str:
@@ -213,7 +212,9 @@ class TenantManager:
                 return dict(base_config)
             merged = dict(base_config)
             # Only allow whitelisted override keys
-            sanitized = {k: v for k, v in tenant.config_overrides.items() if k in self._ALLOWED_OVERRIDES}
+            sanitized = {
+                k: v for k, v in tenant.config_overrides.items() if k in self._ALLOWED_OVERRIDES
+            }
             merged.update(sanitized)
             if tenant.rate_limit is not None:
                 merged["rate_limit"] = tenant.rate_limit

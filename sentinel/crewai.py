@@ -55,8 +55,7 @@ class ShieldBlockedError(Exception):
         self.result = result
 
 
-def _screen(shield: Any, text: str, mode: str,
-            session_id: str, source_ip: str) -> Any:
+def _screen(shield: Any, text: str, mode: str, session_id: str, source_ip: str) -> Any:
     """Run text through Shield and raise or log depending on mode."""
     if not text or not text.strip():
         return None
@@ -64,7 +63,9 @@ def _screen(shield: Any, text: str, mode: str,
     if result.blocked:
         log.warning(
             "Shield blocked input (verdict=%s method=%s session=%s)",
-            result.verdict, result.detection_method, session_id,
+            result.verdict,
+            result.detection_method,
+            session_id,
         )
         if mode == "block":
             raise ShieldBlockedError(
@@ -114,7 +115,11 @@ class ShieldTaskCallback:
             text = str(output)
 
         self.last_result = _screen(
-            self.shield, text, self.mode, self.session_id, self.source_ip,
+            self.shield,
+            text,
+            self.mode,
+            self.session_id,
+            self.source_ip,
         )
 
 
@@ -158,7 +163,11 @@ class ShieldGuardCallback:
             text = str(step_output)
 
         self.last_result = _screen(
-            self.shield, text, self.mode, self.session_id, self.source_ip,
+            self.shield,
+            text,
+            self.mode,
+            self.session_id,
+            self.source_ip,
         )
 
 
@@ -197,7 +206,9 @@ class ShieldTool:
         if not text or not text.strip():
             return "{'verdict': 'SAFE', 'blocked': false, 'note': 'empty input'}"
         result = self.shield.analyze(
-            text, session_id=self.session_id, source_ip=self.source_ip,
+            text,
+            session_id=self.session_id,
+            source_ip=self.source_ip,
         )
         self.last_result = result
         return str(result.to_dict())

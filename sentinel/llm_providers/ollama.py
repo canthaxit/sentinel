@@ -18,6 +18,7 @@ log = logging.getLogger(__name__)
 #   qwen2.5    - Alibaba Qwen 2.5 (strong multilingual support)
 # Select via SHIELD_LLM_MODEL env var (default: llama3)
 
+
 class OllamaJudge(LLMJudge):
     """Explicit Ollama judge (same as base LLMJudge, for clarity)."""
 
@@ -26,6 +27,7 @@ class OllamaJudge(LLMJudge):
 
     def _call_llm(self, user_input):
         import ollama
+
         response = ollama.chat(
             model=self.model,
             messages=[
@@ -40,6 +42,7 @@ class OllamaJudge(LLMJudge):
 # ============================================================================
 # Provider: Ollama Structured (JSON schema output, v0.5+)
 # ============================================================================
+
 
 class OllamaStructuredJudge(OllamaJudge):
     """Ollama judge using structured JSON output (requires Ollama v0.5+).
@@ -59,6 +62,7 @@ class OllamaStructuredJudge(OllamaJudge):
 
     def _call_llm(self, user_input):
         import ollama
+
         response = ollama.chat(
             model=self.model,
             messages=[
@@ -73,6 +77,7 @@ class OllamaStructuredJudge(OllamaJudge):
     def get_verdict(self, user_input):
         """Parse structured JSON verdict directly instead of text extraction."""
         import json
+
         try:
             raw = self._call_llm(user_input)
             data = json.loads(raw)

@@ -8,11 +8,13 @@ from sentinel.llm_judge import LLMJudge
 # Provider: Azure OpenAI
 # ============================================================================
 
+
 class AzureOpenAIJudge(LLMJudge):
     """Azure OpenAI judge. Requires: pip install openai"""
 
-    def __init__(self, model=None, endpoint=None, api_key=None,
-                 deployment=None, api_version=None, **kwargs):
+    def __init__(
+        self, model=None, endpoint=None, api_key=None, deployment=None, api_version=None, **kwargs
+    ):
         super().__init__(model=model or "gpt-4o-mini", **kwargs)
         self.endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT", "")
         self.api_key = api_key or os.getenv("AZURE_OPENAI_KEY", "")

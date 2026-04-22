@@ -8,6 +8,7 @@ from sentinel.llm_judge import LLMJudge
 # Provider: llama-cpp-python (direct in-process GGUF inference)
 # ============================================================================
 
+
 class LlamaCppJudge(LLMJudge):
     """Direct in-process GGUF inference via llama-cpp-python.
 
@@ -31,8 +32,7 @@ class LlamaCppJudge(LLMJudge):
                 "or pass gguf_path= parameter."
             )
         self.gpu_layers = int(
-            gpu_layers if gpu_layers is not None
-            else os.getenv("SHIELD_GPU_LAYERS", "0")
+            gpu_layers if gpu_layers is not None else os.getenv("SHIELD_GPU_LAYERS", "0")
         )
         self._llm = None
 
@@ -42,8 +42,7 @@ class LlamaCppJudge(LLMJudge):
                 from llama_cpp import Llama
             except ImportError:
                 raise ImportError(
-                    "llama-cpp-python required. Install with: "
-                    "pip install llama-cpp-python>=0.2.0"
+                    "llama-cpp-python required. Install with: pip install llama-cpp-python>=0.2.0"
                 )
             self._llm = Llama(
                 model_path=self.gguf_path,
@@ -55,13 +54,10 @@ class LlamaCppJudge(LLMJudge):
 
     def _call_llm(self, user_input):
         from llama_cpp import LlamaGrammar
+
         llm = self._get_llm()
         grammar = LlamaGrammar.from_string(self._GBNF_GRAMMAR)
-        prompt = (
-            f"<|system|>\n{self.system_prompt}\n"
-            f"<|user|>\n{user_input}\n"
-            f"<|assistant|>\n"
-        )
+        prompt = f"<|system|>\n{self.system_prompt}\n<|user|>\n{user_input}\n<|assistant|>\n"
         output = llm(
             prompt,
             max_tokens=8,

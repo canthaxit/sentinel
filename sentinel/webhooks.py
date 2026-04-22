@@ -50,6 +50,7 @@ def determine_severity(result_dict: dict[str, Any]) -> str:
 
 # ---- base class ----
 
+
 class WebhookNotifier:
     """Base notifier -- subclasses implement ``notify()``."""
 
@@ -59,6 +60,7 @@ class WebhookNotifier:
 
 
 # ---- Slack ----
+
 
 class SlackNotifier(WebhookNotifier):
     """Post Block Kit messages to a Slack Incoming Webhook URL."""
@@ -78,8 +80,12 @@ class SlackNotifier(WebhookNotifier):
         preview = event.get("message_preview", "")[:120]
         reason = event.get("escalation_reason", "")
 
-        color = {"critical": "#FF0000", "high": "#FF6600",
-                 "medium": "#FFCC00", "low": "#00CC00"}.get(severity, "#808080")
+        color = {
+            "critical": "#FF0000",
+            "high": "#FF6600",
+            "medium": "#FFCC00",
+            "low": "#00CC00",
+        }.get(severity, "#808080")
 
         fields = [
             {"type": "mrkdwn", "text": f"*Verdict:* {verdict}"},
@@ -93,19 +99,23 @@ class SlackNotifier(WebhookNotifier):
         if reason:
             fields.append({"type": "mrkdwn", "text": f"*Escalation:* {reason}"})
 
-        title = ("Sentinel -- Escalation Alert" if event_type == "escalation"
-                 else "Sentinel -- Detection Alert")
+        title = (
+            "Sentinel -- Escalation Alert"
+            if event_type == "escalation"
+            else "Sentinel -- Detection Alert"
+        )
 
         blocks = [
             {"type": "header", "text": {"type": "plain_text", "text": title}},
             {"type": "section", "fields": fields},
         ]
         if preview:
-            blocks.append({
-                "type": "section",
-                "text": {"type": "mrkdwn",
-                         "text": f"*Preview:* ```{preview}```"},
-            })
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"*Preview:* ```{preview}```"},
+                }
+            )
 
         payload: dict[str, Any] = {"blocks": blocks}
         if self.channel:
@@ -125,6 +135,7 @@ class SlackNotifier(WebhookNotifier):
 
 # ---- Microsoft Teams ----
 
+
 class TeamsNotifier(WebhookNotifier):
     """Post Adaptive Card messages to a Teams Incoming Webhook."""
 
@@ -142,11 +153,14 @@ class TeamsNotifier(WebhookNotifier):
         preview = event.get("message_preview", "")[:120]
         reason = event.get("escalation_reason", "")
 
-        accent = {"critical": "attention", "high": "warning",
-                  "medium": "accent", "low": "good"}.get(severity, "default")
+        accent = {
+            "critical": "attention",
+            "high": "warning",
+            "medium": "accent",
+            "low": "good",
+        }.get(severity, "default")
 
-        title = ("Escalation Alert" if event_type == "escalation"
-                 else "Detection Alert")
+        title = "Escalation Alert" if event_type == "escalation" else "Detection Alert"
 
         facts = [
             {"title": "Verdict", "value": verdict},
@@ -161,25 +175,33 @@ class TeamsNotifier(WebhookNotifier):
             facts.append({"title": "Escalation", "value": reason})
 
         body: list = [
-            {"type": "TextBlock", "text": f"Sentinel -- {title}",
-             "weight": "bolder", "size": "medium", "color": accent},
+            {
+                "type": "TextBlock",
+                "text": f"Sentinel -- {title}",
+                "weight": "bolder",
+                "size": "medium",
+                "color": accent,
+            },
             {"type": "FactSet", "facts": facts},
         ]
         if preview:
-            body.append({"type": "TextBlock", "text": f"Preview: {preview}",
-                         "wrap": True, "isSubtle": True})
+            body.append(
+                {"type": "TextBlock", "text": f"Preview: {preview}", "wrap": True, "isSubtle": True}
+            )
 
         card = {
             "type": "message",
-            "attachments": [{
-                "contentType": "application/vnd.microsoft.card.adaptive",
-                "content": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type": "AdaptiveCard",
-                    "version": "1.4",
-                    "body": body,
-                },
-            }],
+            "attachments": [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "content": {
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "type": "AdaptiveCard",
+                        "version": "1.4",
+                        "body": body,
+                    },
+                }
+            ],
         }
 
         try:
@@ -193,6 +215,7 @@ class TeamsNotifier(WebhookNotifier):
 
 # ---- PagerDuty ----
 
+
 class PagerDutyNotifier(WebhookNotifier):
     """Send events via the PagerDuty Events API v2."""
 
@@ -203,30 +226,31 @@ class PagerDutyNotifier(WebhookNotifier):
 
     def notify(self, event: dict[str, Any]) -> bool:
         severity = event.get("severity", "warning")
-        pd_severity = {"critical": "critical", "high": "error",
-                       "medium": "warning", "low": "info"}.get(severity, "warning")
+        pd_severity = {
+            "critical": "critical",
+            "high": "error",
+            "medium": "warning",
+            "low": "info",
+        }.get(severity, "warning")
 
         session_id = event.get("session_id", "unknown")
         event_type = event.get("event_type", "detection")
         # Dedup key: same session + event_type = same incident
-        dedup = hashlib.sha256(
-            f"{session_id}:{event_type}".encode()
-        ).hexdigest()[:32]
+        dedup = hashlib.sha256(f"{session_id}:{event_type}".encode()).hexdigest()[:32]
 
         payload = {
             "routing_key": self.routing_key,
             "event_action": "trigger",
             "dedup_key": dedup,
             "payload": {
-                "summary": (f"Sentinel {event_type}: "
-                            f"{event.get('verdict', 'UNKNOWN')} from "
-                            f"{event.get('source_ip', 'n/a')}"),
+                "summary": (
+                    f"Sentinel {event_type}: "
+                    f"{event.get('verdict', 'UNKNOWN')} from "
+                    f"{event.get('source_ip', 'n/a')}"
+                ),
                 "severity": pd_severity,
                 "source": f"sentinel:{session_id[:12]}",
-                "custom_details": {
-                    k: v for k, v in event.items()
-                    if k not in ("routing_key",)
-                },
+                "custom_details": {k: v for k, v in event.items() if k not in ("routing_key",)},
             },
         }
 
@@ -240,6 +264,7 @@ class PagerDutyNotifier(WebhookNotifier):
 
 
 # ---- WebhookManager ----
+
 
 class WebhookManager:
     """Dispatch events to multiple notifiers in daemon threads.
@@ -273,8 +298,7 @@ class WebhookManager:
         for notifier in self.notifiers:
             self._executor.submit(self._safe_notify, notifier, event)
 
-    def _safe_notify(self, notifier: WebhookNotifier,
-                     event: dict[str, Any]) -> None:
+    def _safe_notify(self, notifier: WebhookNotifier, event: dict[str, Any]) -> None:
         try:
             notifier.notify(event)
         except Exception:

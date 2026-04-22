@@ -32,21 +32,27 @@ class Permission(enum.Enum):
 
 ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
     "admin": frozenset(Permission),
-    "analyst": frozenset({
-        Permission.ANALYZE,
-        Permission.VIEW_SESSIONS,
-        Permission.VIEW_METRICS,
-        Permission.VIEW_DASHBOARD,
-        Permission.EXPORT_DATA,
-    }),
-    "viewer": frozenset({
-        Permission.VIEW_SESSIONS,
-        Permission.VIEW_METRICS,
-        Permission.VIEW_DASHBOARD,
-    }),
-    "api_client": frozenset({
-        Permission.ANALYZE,
-    }),
+    "analyst": frozenset(
+        {
+            Permission.ANALYZE,
+            Permission.VIEW_SESSIONS,
+            Permission.VIEW_METRICS,
+            Permission.VIEW_DASHBOARD,
+            Permission.EXPORT_DATA,
+        }
+    ),
+    "viewer": frozenset(
+        {
+            Permission.VIEW_SESSIONS,
+            Permission.VIEW_METRICS,
+            Permission.VIEW_DASHBOARD,
+        }
+    ),
+    "api_client": frozenset(
+        {
+            Permission.ANALYZE,
+        }
+    ),
 }
 
 
@@ -103,8 +109,7 @@ class RBACManager:
         assert rbac.authorize(authed, Permission.ANALYZE)
     """
 
-    def __init__(self, max_failed_attempts: int = 5,
-                 lockout_window_seconds: int = 900):
+    def __init__(self, max_failed_attempts: int = 5, lockout_window_seconds: int = 900):
         self._users: dict[str, User] = {}
         self._username_index: dict[str, str] = {}  # username -> user_id
         self._custom_roles: dict[str, frozenset[Permission]] = {}
@@ -209,8 +214,14 @@ class RBACManager:
             # Role escalation guard: reject if new role is higher than current
             if "role" in fields:
                 new_role = fields["role"]
-                cur_idx = self._ROLE_HIERARCHY.index(user.role) if user.role in self._ROLE_HIERARCHY else -1
-                new_idx = self._ROLE_HIERARCHY.index(new_role) if new_role in self._ROLE_HIERARCHY else -1
+                cur_idx = (
+                    self._ROLE_HIERARCHY.index(user.role)
+                    if user.role in self._ROLE_HIERARCHY
+                    else -1
+                )
+                new_idx = (
+                    self._ROLE_HIERARCHY.index(new_role) if new_role in self._ROLE_HIERARCHY else -1
+                )
                 if new_idx > cur_idx:
                     raise PermissionError(
                         f"Cannot escalate role from {user.role!r} to {new_role!r} -- "

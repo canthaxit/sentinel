@@ -23,8 +23,9 @@ class OutputScanResult:
 
     __slots__ = ("block_reason", "blocked", "findings")
 
-    def __init__(self, findings: list[ScanFinding], blocked: bool = False,
-                 block_reason: str | None = None):
+    def __init__(
+        self, findings: list[ScanFinding], blocked: bool = False, block_reason: str | None = None
+    ):
         self.findings = findings
         self.blocked = blocked
         self.block_reason = block_reason
@@ -56,9 +57,12 @@ class OutputScanner:
         allowed_languages: Passed to language scanner
     """
 
-    def __init__(self, scanners: list[str] | None = None,
-                 block_on: set[str] | None = None,
-                 allowed_languages: set[str] | None = None):
+    def __init__(
+        self,
+        scanners: list[str] | None = None,
+        block_on: set[str] | None = None,
+        allowed_languages: set[str] | None = None,
+    ):
         self.scanners = scanners
         self.block_on = block_on or {"critical"}
         self.allowed_languages = allowed_languages

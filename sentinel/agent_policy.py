@@ -44,6 +44,7 @@ class AgentPolicy:
         forbidden_actions: Set of high-level action labels that are always
             blocked (e.g., "delete_production_db", "send_email").
     """
+
     allowed_tools: frozenset[str] = dataclasses.field(default_factory=frozenset)
     denied_tools: frozenset[str] = dataclasses.field(default_factory=frozenset)
     max_delegation_depth: int = 5
@@ -90,8 +91,7 @@ class PolicyValidator:
         # Delegation depth check
         if depth > self.policy.max_delegation_depth:
             return False, (
-                f"Delegation depth {depth} exceeds max "
-                f"{self.policy.max_delegation_depth}"
+                f"Delegation depth {depth} exceeds max {self.policy.max_delegation_depth}"
             )
 
         # Tool call budget check
@@ -116,9 +116,7 @@ class PolicyValidator:
             return False, f"Action '{action_name}' is forbidden by policy"
         return True, None
 
-    def enforce_tool_call(
-        self, tool_name: str, depth: int = 0, call_count: int = 0
-    ) -> None:
+    def enforce_tool_call(self, tool_name: str, depth: int = 0, call_count: int = 0) -> None:
         """Like validate_tool_call but raises PolicyViolation on denial."""
         allowed, reason = self.validate_tool_call(tool_name, depth, call_count)
         if not allowed:

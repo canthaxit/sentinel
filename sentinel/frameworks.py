@@ -388,6 +388,7 @@ CATEGORY_TO_NIST_800_53 = {
 # Threat mapping builder
 # ---------------------------------------------------------------------------
 
+
 def _match_pre_blocked(mapping, verdict):
     """Find the best matching PRE_BLOCKED key in a mapping dict.
 
@@ -410,7 +411,9 @@ def _match_pre_blocked(mapping, verdict):
         "SESSION_ESCALATED": "CRITICAL_KEYWORDS",
     }
     # Strip PRE_BLOCKED_ prefix to get the reason
-    reason = verdict.replace("PRE_BLOCKED_", "", 1) if verdict.startswith("PRE_BLOCKED_") else verdict
+    reason = (
+        verdict.replace("PRE_BLOCKED_", "", 1) if verdict.startswith("PRE_BLOCKED_") else verdict
+    )
     for prefix, canonical in _CANONICAL.items():
         if reason.startswith(prefix):
             key = f"PRE_BLOCKED_{canonical}"
@@ -420,8 +423,7 @@ def _match_pre_blocked(mapping, verdict):
     return mapping.get("PRE_BLOCKED_CRITICAL_KEYWORDS", [])
 
 
-def build_threat_mapping(detection_method, ml_result=None, llm_verdict=None,
-                         category=None):
+def build_threat_mapping(detection_method, ml_result=None, llm_verdict=None, category=None):
     """Build a threat mapping dict from detection results.
 
     Args:
@@ -492,6 +494,7 @@ def build_threat_mapping(detection_method, ml_result=None, llm_verdict=None,
 # OWASP COMPASS Export (Tab 3f format)
 # ---------------------------------------------------------------------------
 
+
 def _confidence_to_5pt(confidence):
     """Map 0.0-1.0 ML confidence to COMPASS 1-5 scale."""
     if confidence >= 0.9:
@@ -534,15 +537,17 @@ def compass_export(results):
         category = r.get("ml_threat_type") or "prompt_injection"
         ml_score = r.get("ml_score") or 0.0
 
-        rows.append({
-            "threat_name": r.get("detection_method", "unknown"),
-            "owasp_id": ", ".join(tm.get("owasp_llm", [])),
-            "impact_score": _confidence_to_5pt(ml_score),
-            "likelihood_score": _confidence_to_5pt(ml_score),
-            "cwe": ", ".join(tm.get("cwe", [])),
-            "mitre_atlas": ", ".join(tm.get("mitre_atlas", [])),
-            "cvss_base": tm.get("cvss_base", 0.0),
-            "nist_csf": ", ".join(tm.get("nist_csf", [])),
-            "remediation": _REMEDIATION_BY_CATEGORY.get(category, ""),
-        })
+        rows.append(
+            {
+                "threat_name": r.get("detection_method", "unknown"),
+                "owasp_id": ", ".join(tm.get("owasp_llm", [])),
+                "impact_score": _confidence_to_5pt(ml_score),
+                "likelihood_score": _confidence_to_5pt(ml_score),
+                "cwe": ", ".join(tm.get("cwe", [])),
+                "mitre_atlas": ", ".join(tm.get("mitre_atlas", [])),
+                "cvss_base": tm.get("cvss_base", 0.0),
+                "nist_csf": ", ".join(tm.get("nist_csf", [])),
+                "remediation": _REMEDIATION_BY_CATEGORY.get(category, ""),
+            }
+        )
     return rows

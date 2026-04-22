@@ -9,6 +9,7 @@ from sentinel.model_config import get_model
 # Provider: Anthropic
 # ============================================================================
 
+
 class AnthropicJudge(LLMJudge):
     """Anthropic Claude judge. Requires: pip install anthropic"""
 

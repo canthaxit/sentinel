@@ -73,13 +73,17 @@ class SentinelCallback(_LiteLLMBase):  # type: ignore[misc]
         if not text or not text.strip():
             return
         result = self.shield.analyze(
-            text, session_id=self.session_id, source_ip=self.source_ip,
+            text,
+            session_id=self.session_id,
+            source_ip=self.source_ip,
         )
         self.last_result = result
         if result.blocked:
             log.warning(
                 "Shield blocked input (verdict=%s method=%s session=%s)",
-                result.verdict, result.detection_method, self.session_id,
+                result.verdict,
+                result.detection_method,
+                self.session_id,
             )
             if self.mode == "block":
                 raise ShieldBlockedError(
@@ -97,34 +101,38 @@ class SentinelCallback(_LiteLLMBase):  # type: ignore[misc]
 
     # ---- Sync hooks ----
 
-    def log_pre_api_call(self, model: str, messages: Any,
-                         kwargs: dict[str, Any]) -> None:
+    def log_pre_api_call(self, model: str, messages: Any, kwargs: dict[str, Any]) -> None:
         """Called before each LiteLLM API call (sync path)."""
         if isinstance(messages, list):
             self._screen_messages(messages)
 
     # ---- Async hooks ----
 
-    async def async_log_pre_api_call(self, model: str, messages: Any,
-                                     kwargs: dict[str, Any]) -> None:
+    async def async_log_pre_api_call(
+        self, model: str, messages: Any, kwargs: dict[str, Any]
+    ) -> None:
         """Called before each LiteLLM API call (async path)."""
         if isinstance(messages, list):
             self._screen_messages(messages)
 
     # ---- No-op stubs ----
 
-    def log_success_event(self, kwargs: Any, response_obj: Any,
-                          start_time: Any, end_time: Any) -> None:
+    def log_success_event(
+        self, kwargs: Any, response_obj: Any, start_time: Any, end_time: Any
+    ) -> None:
         pass
 
-    def log_failure_event(self, kwargs: Any, response_obj: Any,
-                          start_time: Any, end_time: Any) -> None:
+    def log_failure_event(
+        self, kwargs: Any, response_obj: Any, start_time: Any, end_time: Any
+    ) -> None:
         pass
 
-    async def async_log_success_event(self, kwargs: Any, response_obj: Any,
-                                      start_time: Any, end_time: Any) -> None:
+    async def async_log_success_event(
+        self, kwargs: Any, response_obj: Any, start_time: Any, end_time: Any
+    ) -> None:
         pass
 
-    async def async_log_failure_event(self, kwargs: Any, response_obj: Any,
-                                      start_time: Any, end_time: Any) -> None:
+    async def async_log_failure_event(
+        self, kwargs: Any, response_obj: Any, start_time: Any, end_time: Any
+    ) -> None:
         pass

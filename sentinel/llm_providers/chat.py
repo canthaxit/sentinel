@@ -10,6 +10,7 @@ log = logging.getLogger(__name__)
 # Chat Completion Helper (for decoy/assistant responses)
 # ============================================================================
 
+
 def chat_completion(messages, system=None, options=None, **kwargs):
     """
     Provider-agnostic chat completion for general conversation.
@@ -31,7 +32,14 @@ def chat_completion(messages, system=None, options=None, **kwargs):
 
     # Build full message list with system prompt
     full_messages = []
-    if system and provider in ("ollama", "ollama_structured", "openai", "openai_compat", "azure", "llamacpp"):
+    if system and provider in (
+        "ollama",
+        "ollama_structured",
+        "openai",
+        "openai_compat",
+        "azure",
+        "llamacpp",
+    ):
         full_messages.append({"role": "system", "content": system})
     full_messages.extend(messages)
 
@@ -59,6 +67,7 @@ def chat_completion(messages, system=None, options=None, **kwargs):
 def _chat_ollama(messages, model, options=None):
     """Ollama chat completion."""
     import ollama
+
     default_options = {
         "num_ctx": 1024,
         "num_predict": 200,
@@ -121,7 +130,8 @@ def _chat_azure(messages, kwargs):
     client = openai.AzureOpenAI(
         azure_endpoint=kwargs.get("endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
         api_key=kwargs.get("api_key") or os.getenv("AZURE_OPENAI_KEY", ""),
-        api_version=kwargs.get("api_version") or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01"),
+        api_version=kwargs.get("api_version")
+        or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01"),
     )
     deployment = kwargs.get("deployment") or os.getenv("AZURE_OPENAI_DEPLOYMENT", "")
     response = client.chat.completions.create(
@@ -136,6 +146,7 @@ def _chat_azure(messages, kwargs):
 def _chat_bedrock(messages, model, system=None, kwargs=None):
     """AWS Bedrock chat completion."""
     import json
+
     try:
         import boto3
     except ImportError:
@@ -150,15 +161,19 @@ def _chat_bedrock(messages, model, system=None, kwargs=None):
             if m["role"] == "system":
                 sys_prompt = m["content"]
                 break
-    body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 200,
-        "system": sys_prompt,
-        "messages": user_messages,
-    })
+    body = json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 200,
+            "system": sys_prompt,
+            "messages": user_messages,
+        }
+    )
     response = client.invoke_model(
-        modelId=model, body=body,
-        contentType="application/json", accept="application/json",
+        modelId=model,
+        body=body,
+        contentType="application/json",
+        accept="application/json",
     )
     result = json.loads(response["body"].read())
     return result["content"][0]["text"]

@@ -42,6 +42,7 @@ _MAX_EXTRACT_DEPTH = 10
 
 # ---- Middleware ----
 
+
 class ShieldMiddleware(BaseHTTPMiddleware):
     """Screen JSON request bodies through Sentinel.
 
@@ -90,9 +91,7 @@ class ShieldMiddleware(BaseHTTPMiddleware):
             if body:
                 data = json.loads(body)
                 strings = _extract_strings(data)
-                session_id = _validated_session_id(
-                    request.headers.get(self.session_header)
-                )
+                session_id = _validated_session_id(request.headers.get(self.session_header))
                 source_ip = request.client.host if request.client else "127.0.0.1"
 
                 for text in strings:
@@ -147,9 +146,11 @@ def _extract_strings(data: Any, depth: int = 0) -> list:
 
 # ---- API Router ----
 
+
 def _validated_session_id(raw: str | None) -> str:
     """Return *raw* if it is a valid UUID, otherwise generate a new one."""
     import uuid
+
     if raw:
         try:
             uuid.UUID(raw)
@@ -215,9 +216,7 @@ def create_shield_router(
             if allow_unauthenticated:
                 return  # Explicit opt-in: open access
             raise HTTPException(status_code=401, detail="Unauthorized")
-        if not x_api_key or not hmac.compare_digest(
-            x_api_key.encode(), expected.encode()
-        ):
+        if not x_api_key or not hmac.compare_digest(x_api_key.encode(), expected.encode()):
             raise HTTPException(status_code=401, detail="Unauthorized")
 
     # ---- rate-limit dependency ----

@@ -8,6 +8,7 @@ from sentinel.llm_judge import LLMJudge
 # Provider: OpenAI-Compatible (vLLM, LocalAI, LM Studio, llama.cpp server)
 # ============================================================================
 
+
 class OpenAICompatibleJudge(LLMJudge):
     """Generic judge for any OpenAI-compatible API server.
 

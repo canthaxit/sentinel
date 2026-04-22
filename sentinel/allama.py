@@ -66,6 +66,7 @@ _OCSF_CATEGORY = {
 
 # ---- AllamaNotifier (WebhookNotifier subclass) ----
 
+
 class AllamaNotifier(WebhookNotifier):
     """Send Shield events to an Allama SOAR webhook endpoint.
 
@@ -207,6 +208,7 @@ class AllamaNotifier(WebhookNotifier):
 
 # ---- AllamaClient (standalone REST client) ----
 
+
 class AllamaClient:
     """REST client for the Allama SOAR API.
 
@@ -318,15 +320,18 @@ class AllamaClient:
     def update_case(self, case_id: str, **fields) -> dict[str, Any]:
         """Update an existing case (``PATCH /api/cases/{case_id}``)."""
         from urllib.parse import quote
-        safe_id = quote(case_id, safe='')
+
+        safe_id = quote(case_id, safe="")
         return self._request("PATCH", f"/api/cases/{safe_id}", json=fields).json()
 
     def add_comment(self, case_id: str, comment: str) -> dict[str, Any]:
         """Add a comment to a case (``POST /api/cases/{case_id}/comments``)."""
         from urllib.parse import quote
-        safe_id = quote(case_id, safe='')
+
+        safe_id = quote(case_id, safe="")
         return self._request(
-            "POST", f"/api/cases/{safe_id}/comments",
+            "POST",
+            f"/api/cases/{safe_id}/comments",
             json={"comment": comment, "source": "sentinel"},
         ).json()
 
@@ -339,6 +344,7 @@ class AllamaClient:
     ) -> dict[str, Any]:
         """Trigger a named workflow (``POST /api/workflows/{workflow_id}/trigger``)."""
         return self._request(
-            "POST", f"/api/workflows/{workflow_id}/trigger",
+            "POST",
+            f"/api/workflows/{workflow_id}/trigger",
             json=payload or {},
         ).json()

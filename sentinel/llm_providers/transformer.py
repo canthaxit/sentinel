@@ -12,6 +12,7 @@ log = logging.getLogger(__name__)
 # Provider: Transformer Classifier (HuggingFace binary classifier)
 # ============================================================================
 
+
 class TransformerClassifierJudge(LLMJudge):
     """HuggingFace transformers binary injection classifier.
 
@@ -37,8 +38,7 @@ class TransformerClassifierJudge(LLMJudge):
         )
         super().__init__(model=model or default_model, **kwargs)
         self.threshold = float(
-            threshold if threshold is not None
-            else os.getenv("SHIELD_CLASSIFIER_THRESHOLD", "0.5")
+            threshold if threshold is not None else os.getenv("SHIELD_CLASSIFIER_THRESHOLD", "0.5")
         )
         self._pipeline = None
 
@@ -80,7 +80,8 @@ class TransformerClassifierJudge(LLMJudge):
                 # Unknown label or below threshold -- fail closed
                 log.warning(
                     "Transformer: unknown label '%s' (score=%.3f), defaulting to UNSAFE",
-                    label, score,
+                    label,
+                    score,
                 )
                 return "UNSAFE"
         except Exception as e:

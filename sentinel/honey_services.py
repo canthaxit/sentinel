@@ -34,6 +34,7 @@ log = logging.getLogger("sentinel.honey_services")
 # Configuration
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class HoneyServiceConfig:
     """Configuration for a single honey service.
@@ -45,6 +46,7 @@ class HoneyServiceConfig:
         banner: Initial banner/greeting string sent on connection.
         responses: Mapping of request patterns to canned response bodies.
     """
+
     name: str
     port: int
     protocol: str = "http"
@@ -55,6 +57,7 @@ class HoneyServiceConfig:
 # ---------------------------------------------------------------------------
 # HTTP Honey Service
 # ---------------------------------------------------------------------------
+
 
 class _HoneyHTTPHandler(socketserver.BaseRequestHandler):
     """Minimal HTTP/1.1 handler that returns configurable responses.
@@ -94,23 +97,28 @@ class _HoneyHTTPHandler(socketserver.BaseRequestHandler):
 
             log.info(
                 "[HONEY-HTTP] %s:%d -> %s %s (service=%s)",
-                source_ip, source_port, method, path,
+                source_ip,
+                source_port,
+                method,
+                path,
                 cfg.name if cfg else "unknown",
             )
 
             # Fire trigger callback
             cb = self._trigger_cb
             if cb is not None:
-                cb({
-                    "service": cfg.name if cfg else "unknown",
-                    "protocol": "http",
-                    "source_ip": source_ip,
-                    "source_port": source_port,
-                    "method": method,
-                    "path": path,
-                    "raw_request": request_text[:1024],
-                    "timestamp": datetime.datetime.now().isoformat(),
-                })
+                cb(
+                    {
+                        "service": cfg.name if cfg else "unknown",
+                        "protocol": "http",
+                        "source_ip": source_ip,
+                        "source_port": source_port,
+                        "method": method,
+                        "path": path,
+                        "raw_request": request_text[:1024],
+                        "timestamp": datetime.datetime.now().isoformat(),
+                    }
+                )
 
             # Determine response body
             body = None
@@ -165,8 +173,7 @@ class HoneyHTTPService:
         trigger_callback: Optional callable invoked on each connection.
     """
 
-    def __init__(self, config: HoneyServiceConfig,
-                 trigger_callback: Callable | None = None):
+    def __init__(self, config: HoneyServiceConfig, trigger_callback: Callable | None = None):
         self.config = config
         self.trigger_callback = trigger_callback
         self._server: socketserver.TCPServer | None = None
@@ -197,7 +204,8 @@ class HoneyHTTPService:
         self._thread.start()
         log.info(
             "Honey HTTP service '%s' listening on port %d",
-            self.config.name, self.config.port,
+            self.config.name,
+            self.config.port,
         )
 
     def stop(self) -> None:
@@ -217,6 +225,7 @@ class HoneyHTTPService:
 # ---------------------------------------------------------------------------
 # Service Registry
 # ---------------------------------------------------------------------------
+
 
 class HoneyServiceRegistry:
     """Manages multiple honey services and records trigger events.
@@ -286,7 +295,7 @@ class HoneyServiceRegistry:
                     "port": cfg.port,
                     "protocol": cfg.protocol,
                     "running": self._services.get(cfg.name, None) is not None
-                               and self._services[cfg.name].is_running,
+                    and self._services[cfg.name].is_running,
                 }
                 for cfg in self._configs.values()
             ]
@@ -332,6 +341,7 @@ class HoneyServiceRegistry:
 # ---------------------------------------------------------------------------
 # Topology templates
 # ---------------------------------------------------------------------------
+
 
 def _enterprise_topology() -> list[HoneyServiceConfig]:
     """Enterprise IT topology: admin panels, webmail, LDAP, SMB-like."""
@@ -438,7 +448,7 @@ def _ics_scada_topology() -> list[HoneyServiceConfig]:
                     '{"name":"TT-301","value":72.4,"unit":"degC","alarm":false},'
                     '{"name":"PT-302","value":14.7,"unit":"PSI","alarm":false},'
                     '{"name":"FT-303","value":450.2,"unit":"GPM","alarm":false}'
-                    ']}'
+                    "]}"
                 ),
                 "default": "<html><body><h1>Access Restricted</h1></body></html>",
             },

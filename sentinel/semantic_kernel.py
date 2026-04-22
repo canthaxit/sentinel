@@ -42,8 +42,7 @@ class ShieldBlockedError(Exception):
         self.result = result
 
 
-def _screen(shield: Any, text: str, mode: str,
-            session_id: str, source_ip: str) -> Any:
+def _screen(shield: Any, text: str, mode: str, session_id: str, source_ip: str) -> Any:
     """Run text through Shield and raise or log depending on mode."""
     if not text or not text.strip():
         return None
@@ -51,7 +50,9 @@ def _screen(shield: Any, text: str, mode: str,
     if result.blocked:
         log.warning(
             "Shield blocked input (verdict=%s method=%s session=%s)",
-            result.verdict, result.detection_method, session_id,
+            result.verdict,
+            result.detection_method,
+            session_id,
         )
         if mode == "block":
             raise ShieldBlockedError(
@@ -88,7 +89,9 @@ class ShieldPromptFilter:
         self.last_result: Any | None = None
 
     async def on_prompt_render(
-        self, context: Any, next_handler: Callable,
+        self,
+        context: Any,
+        next_handler: Callable,
     ) -> None:
         """Screen the rendered prompt before sending to the LLM."""
         # Extract rendered prompt from context
@@ -100,14 +103,20 @@ class ShieldPromptFilter:
                 for val in args.values():
                     if isinstance(val, str):
                         self.last_result = _screen(
-                            self.shield, val, self.mode,
-                            self.session_id, self.source_ip,
+                            self.shield,
+                            val,
+                            self.mode,
+                            self.session_id,
+                            self.source_ip,
                         )
         else:
             if isinstance(rendered, str):
                 self.last_result = _screen(
-                    self.shield, rendered, self.mode,
-                    self.session_id, self.source_ip,
+                    self.shield,
+                    rendered,
+                    self.mode,
+                    self.session_id,
+                    self.source_ip,
                 )
 
         await next_handler(context)
@@ -140,7 +149,9 @@ class ShieldFunctionFilter:
         self.last_result: Any | None = None
 
     async def on_function_invocation(
-        self, context: Any, next_handler: Callable,
+        self,
+        context: Any,
+        next_handler: Callable,
     ) -> None:
         """Screen function arguments before the function executes."""
         args = getattr(context, "arguments", None)
@@ -148,8 +159,11 @@ class ShieldFunctionFilter:
             for val in args.values():
                 if isinstance(val, str):
                     self.last_result = _screen(
-                        self.shield, val, self.mode,
-                        self.session_id, self.source_ip,
+                        self.shield,
+                        val,
+                        self.mode,
+                        self.session_id,
+                        self.source_ip,
                     )
 
         await next_handler(context)

@@ -55,8 +55,7 @@ class EnsembleEngine:
 
         # If ML API unavailable, fallback to LLM-only
         if ml_result is None:
-            llm_verdict = self.llm_judge.get_verdict(
-                user_input, fail_open=self.fail_open)
+            llm_verdict = self.llm_judge.get_verdict(user_input, fail_open=self.fail_open)
             if llm_verdict == "FAIL_OPEN":
                 return "SAFE", None, "FAIL_OPEN"
             verdict = "MALICIOUS" if "UNSAFE" in llm_verdict else "SAFE"
@@ -73,8 +72,7 @@ class EnsembleEngine:
             return "SAFE", ml_result, None
 
         # TIER 3: LLM disambiguation for ambiguous scores
-        llm_verdict = self.llm_judge.get_verdict(
-            user_input, fail_open=self.fail_open)
+        llm_verdict = self.llm_judge.get_verdict(user_input, fail_open=self.fail_open)
         if llm_verdict == "FAIL_OPEN":
             # ML was available but ambiguous, LLM failed -- allow through
             return "SAFE", ml_result, "FAIL_OPEN"

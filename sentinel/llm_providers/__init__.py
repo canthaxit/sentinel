@@ -32,6 +32,7 @@ Usage:
         system="You are a helpful assistant.",
     )
 """
+
 from .anthropic_provider import AnthropicJudge
 from .azure import AzureOpenAIJudge
 from .bedrock import BedrockJudge
@@ -46,12 +47,19 @@ from .openai_provider import OpenAIJudge
 from .transformer import TransformerClassifierJudge
 
 __all__ = [
-    "OllamaJudge", "OllamaStructuredJudge",
-    "OpenAIJudge", "OpenAICompatibleJudge",
-    "AnthropicJudge", "AzureOpenAIJudge",
-    "BedrockJudge", "VertexAIJudge", "GeminiJudge",
-    "LlamaCppJudge", "TransformerClassifierJudge",
+    "OllamaJudge",
+    "OllamaStructuredJudge",
+    "OpenAIJudge",
+    "OpenAICompatibleJudge",
+    "AnthropicJudge",
+    "AzureOpenAIJudge",
+    "BedrockJudge",
+    "VertexAIJudge",
+    "GeminiJudge",
+    "LlamaCppJudge",
+    "TransformerClassifierJudge",
     "FallbackJudge",
-    "create_llm_judge", "_PROVIDERS",
+    "create_llm_judge",
+    "_PROVIDERS",
     "chat_completion",
 ]

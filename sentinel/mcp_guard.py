@@ -38,6 +38,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class MCPGuardResult:
     """Result of an MCPGuard interception."""
+
     allowed: bool
     tool_name: str
     blocked_reason: str | None = None
@@ -55,10 +56,7 @@ class MCPGuardResult:
             "tool_name": self.tool_name,
             "blocked_reason": self.blocked_reason,
             "severity": self.severity,
-            "findings": [
-                f.to_dict() if hasattr(f, "to_dict") else f
-                for f in self.findings
-            ],
+            "findings": [f.to_dict() if hasattr(f, "to_dict") else f for f in self.findings],
             "honey_triggered": self.honey_triggered,
             "honey_response": self.honey_response,
             "sanitized_arguments": self.sanitized_arguments,
@@ -109,6 +107,7 @@ class MCPGuard:
             self.honey_tools = honey_tools
         elif config.MCP_HONEY_TOOLS_ENABLED:
             from .mcp_honey import HoneyToolRegistry
+
             self.honey_tools = HoneyToolRegistry()
         else:
             self.honey_tools = None
@@ -160,7 +159,9 @@ class MCPGuard:
         message_path.append("policy_check")
         if self.policy_validator is not None:
             allowed, reason = self.policy_validator.validate_tool_call(
-                tool_name, depth=delegation_depth, call_count=call_count,
+                tool_name,
+                depth=delegation_depth,
+                call_count=call_count,
             )
             if not allowed:
                 result = MCPGuardResult(
@@ -171,7 +172,11 @@ class MCPGuard:
                     message_path=message_path,
                 )
                 self._post_intercept(
-                    result, session_id, source_ip, arguments, findings,
+                    result,
+                    session_id,
+                    source_ip,
+                    arguments,
+                    findings,
                 )
                 return result
 
@@ -194,7 +199,11 @@ class MCPGuard:
                 message_path=message_path,
             )
             self._post_intercept(
-                result, session_id, source_ip, arguments, findings,
+                result,
+                session_id,
+                source_ip,
+                arguments,
+                findings,
                 honey_triggered=True,
             )
             return result
@@ -204,6 +213,7 @@ class MCPGuard:
         # strip attack payloads before the scanner sees them.
         message_path.append("arg_scan")
         from .mcp_scanner import scan_mcp_arguments
+
         findings = scan_mcp_arguments(tool_name, arguments)
 
         # --- Step 4: Argument Sanitization (for pass-through to real tool) ---
@@ -231,7 +241,11 @@ class MCPGuard:
                     message_path=message_path,
                 )
                 self._post_intercept(
-                    result, session_id, source_ip, arguments, findings,
+                    result,
+                    session_id,
+                    source_ip,
+                    arguments,
+                    findings,
                 )
                 return result
 
@@ -266,7 +280,11 @@ class MCPGuard:
         )
 
         self._post_intercept(
-            result, session_id, source_ip, arguments, findings,
+            result,
+            session_id,
+            source_ip,
+            arguments,
+            findings,
         )
         return result
 
@@ -333,26 +351,32 @@ class MCPGuard:
         return mapping
 
     def _post_intercept(
-        self, result, session_id, source_ip, arguments, findings,
+        self,
+        result,
+        session_id,
+        source_ip,
+        arguments,
+        findings,
         honey_triggered=False,
     ):
         """Post-interception: storage, session update, CEF logging, webhooks, metrics."""
         # Persist MCP event to storage backend
         if self.storage_backend is not None:
             try:
-                self.storage_backend.log_mcp_event({
-                    "session_id": session_id,
-                    "tool_name": result.tool_name,
-                    "allowed": result.allowed,
-                    "blocked_reason": result.blocked_reason,
-                    "severity": result.severity,
-                    "findings": [
-                        f.to_dict() if hasattr(f, "to_dict") else f
-                        for f in findings
-                    ] if findings else [],
-                    "honey_triggered": honey_triggered,
-                    "source_ip": source_ip,
-                })
+                self.storage_backend.log_mcp_event(
+                    {
+                        "session_id": session_id,
+                        "tool_name": result.tool_name,
+                        "allowed": result.allowed,
+                        "blocked_reason": result.blocked_reason,
+                        "severity": result.severity,
+                        "findings": [f.to_dict() if hasattr(f, "to_dict") else f for f in findings]
+                        if findings
+                        else [],
+                        "honey_triggered": honey_triggered,
+                        "source_ip": source_ip,
+                    }
+                )
             except Exception as e:
                 log.warning("MCP storage logging failed: %s", e)
 
@@ -401,9 +425,7 @@ class MCPGuard:
                 self._metrics["honey_triggers"] += 1
             for f in findings:
                 cat = f.category if hasattr(f, "category") else f.get("category", "unknown")
-                self._metrics["by_category"][cat] = (
-                    self._metrics["by_category"].get(cat, 0) + 1
-                )
+                self._metrics["by_category"][cat] = self._metrics["by_category"].get(cat, 0) + 1
 
     @property
     def metrics(self) -> dict:

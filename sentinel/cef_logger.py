@@ -133,10 +133,12 @@ class CEFLogger:
     PRODUCT = "Sentinel"
     VERSION = "1.0"
 
-    def __init__(self, output=None, file_path=None,
-                 syslog_host=None, syslog_port=None, syslog_protocol=None):
+    def __init__(
+        self, output=None, file_path=None, syslog_host=None, syslog_port=None, syslog_protocol=None
+    ):
         self.output = output or os.getenv("CEF_OUTPUT", "file")
         import pathlib
+
         raw_path = file_path or os.getenv("CEF_FILE", "sentinel_cef.log")
         # Validate file path to prevent path traversal
         resolved = pathlib.Path(raw_path).resolve()
@@ -144,9 +146,7 @@ class CEFLogger:
         try:
             resolved.relative_to(base_dir)
         except ValueError:
-            raise ValueError(
-                f"CEF file path {raw_path} resolves outside base directory {base_dir}"
-            )
+            raise ValueError(f"CEF file path {raw_path} resolves outside base directory {base_dir}")
         self.file_path = str(resolved)
         self.syslog_host = syslog_host or os.getenv("CEF_SYSLOG_HOST", "127.0.0.1")
         self.syslog_port = int(syslog_port or os.getenv("CEF_SYSLOG_PORT", "514"))
@@ -217,10 +217,19 @@ class CEFLogger:
                 with open(self.file_path, "a", encoding="utf-8") as f:
                     f.write(full_line + "\n")
 
-    def log_detection(self, verdict, user_input, session_id, source_ip,
-                      ml_result=None, llm_verdict=None, detection_method=None,
-                      sanitizations=None, attack_patterns=None,
-                      threat_mapping=None):
+    def log_detection(
+        self,
+        verdict,
+        user_input,
+        session_id,
+        source_ip,
+        ml_result=None,
+        llm_verdict=None,
+        detection_method=None,
+        sanitizations=None,
+        attack_patterns=None,
+        threat_mapping=None,
+    ):
         """
         Log a detection event in CEF format.
 
@@ -328,9 +337,7 @@ class CEFLogger:
             "msg": reason,
             "cnt": threat_count,
         }
-        cef_line = self._build_cef_line(
-            SIG_SESSION_ESCALATION, "Session Escalated", 7, extensions
-        )
+        cef_line = self._build_cef_line(SIG_SESSION_ESCALATION, "Session Escalated", 7, extensions)
         self._emit(cef_line)
 
     def log_honey_token(self, token_id, source_ip):
@@ -341,9 +348,7 @@ class CEFLogger:
             "cs1": token_id,
             "cs1Label": "TokenID",
         }
-        cef_line = self._build_cef_line(
-            SIG_HONEY_TOKEN, "Honey Token Triggered", 10, extensions
-        )
+        cef_line = self._build_cef_line(SIG_HONEY_TOKEN, "Honey Token Triggered", 10, extensions)
         self._emit(cef_line)
 
     def log_rate_limit(self, source_ip):
@@ -352,13 +357,10 @@ class CEFLogger:
             "src": source_ip,
             "msg": "Rate limit exceeded",
         }
-        cef_line = self._build_cef_line(
-            SIG_RATE_LIMIT, "Rate Limit Exceeded", 4, extensions
-        )
+        cef_line = self._build_cef_line(SIG_RATE_LIMIT, "Rate Limit Exceeded", 4, extensions)
         self._emit(cef_line)
 
-    def log_mcp_event(self, tool_name, arguments_preview, session_id,
-                      source_ip, guard_result):
+    def log_mcp_event(self, tool_name, arguments_preview, session_id, source_ip, guard_result):
         """Log an MCP tool call event in CEF format.
 
         Args:
@@ -390,7 +392,11 @@ class CEFLogger:
             sig_id = SIG_MCP_RATE_LIMITED
         elif findings:
             # Use the first finding's category
-            first_cat = findings[0].get("category", "") if isinstance(findings[0], dict) else findings[0].category
+            first_cat = (
+                findings[0].get("category", "")
+                if isinstance(findings[0], dict)
+                else findings[0].category
+            )
             sig_id = _CATEGORY_SIG.get(first_cat, SIG_MCP_TOOL_BLOCKED)
         else:
             sig_id = SIG_MCP_TOOL_BLOCKED

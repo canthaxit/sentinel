@@ -9,6 +9,7 @@ from sentinel.model_config import get_model
 # Provider: Google Vertex AI
 # ============================================================================
 
+
 class VertexAIJudge(LLMJudge):
     """Google Vertex AI judge. Requires: pip install google-cloud-aiplatform"""
 
@@ -49,6 +50,7 @@ class VertexAIJudge(LLMJudge):
 # ============================================================================
 # Provider: Google Gemini (direct API)
 # ============================================================================
+
 
 class GeminiJudge(LLMJudge):
     """Google Gemini API judge. Requires: pip install google-generativeai"""

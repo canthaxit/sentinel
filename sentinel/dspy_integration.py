@@ -55,9 +55,9 @@ class ShieldBlockedError(Exception):
         self.result = result
 
 
-def _analyze(shield: Any, text: str,
-             session_id: str = "default",
-             source_ip: str = "127.0.0.1") -> Any:
+def _analyze(
+    shield: Any, text: str, session_id: str = "default", source_ip: str = "127.0.0.1"
+) -> Any:
     """Run text through Shield and return the result."""
     if not text or not text.strip():
         return None
@@ -89,7 +89,9 @@ def shield_assert(
     if result is not None and result.blocked:
         log.warning(
             "shield_assert blocked (verdict=%s method=%s session=%s)",
-            result.verdict, result.detection_method, session_id,
+            result.verdict,
+            result.detection_method,
+            session_id,
         )
         detail = f"{message}: {result.verdict}"
         if _dspy is not None and hasattr(_dspy, "Assert"):
@@ -173,11 +175,17 @@ class ShieldModule:
         if text and isinstance(text, str):
             if self.mode == "block":
                 self.last_result = shield_assert(
-                    self.shield, text, self.session_id, self.source_ip,
+                    self.shield,
+                    text,
+                    self.session_id,
+                    self.source_ip,
                 )
             else:
                 self.last_result = shield_suggest(
-                    self.shield, text, self.session_id, self.source_ip,
+                    self.shield,
+                    text,
+                    self.session_id,
+                    self.source_ip,
                 )
 
         return self.inner(*args, **kwargs)
