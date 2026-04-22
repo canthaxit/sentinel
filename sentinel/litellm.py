@@ -23,7 +23,7 @@ Requires ``litellm>=1.40.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class SentinelCallback(_LiteLLMBase):  # type: ignore[misc]
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     def _screen(self, text: str) -> None:
         """Run *text* through Shield. Raise or log depending on mode."""
@@ -87,7 +87,7 @@ class SentinelCallback(_LiteLLMBase):  # type: ignore[misc]
                     result=result,
                 )
 
-    def _screen_messages(self, messages: List[Dict[str, Any]]) -> None:
+    def _screen_messages(self, messages: list[dict[str, Any]]) -> None:
         """Screen each user message in a LiteLLM messages list."""
         for msg in messages:
             role = msg.get("role", "")
@@ -98,7 +98,7 @@ class SentinelCallback(_LiteLLMBase):  # type: ignore[misc]
     # ---- Sync hooks ----
 
     def log_pre_api_call(self, model: str, messages: Any,
-                         kwargs: Dict[str, Any]) -> None:
+                         kwargs: dict[str, Any]) -> None:
         """Called before each LiteLLM API call (sync path)."""
         if isinstance(messages, list):
             self._screen_messages(messages)
@@ -106,7 +106,7 @@ class SentinelCallback(_LiteLLMBase):  # type: ignore[misc]
     # ---- Async hooks ----
 
     async def async_log_pre_api_call(self, model: str, messages: Any,
-                                     kwargs: Dict[str, Any]) -> None:
+                                     kwargs: dict[str, Any]) -> None:
         """Called before each LiteLLM API call (async path)."""
         if isinstance(messages, list):
             self._screen_messages(messages)

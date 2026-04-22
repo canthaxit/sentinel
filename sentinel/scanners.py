@@ -12,7 +12,6 @@ Use scan_all() to run multiple scanners in one call.
 import dataclasses
 import math
 import re
-from typing import List, Optional, Set
 
 from . import config
 
@@ -60,9 +59,9 @@ _SECRET_PATTERNS = [
 ]
 
 
-def scan_secrets(text: str) -> List[ScanFinding]:
+def scan_secrets(text: str) -> list[ScanFinding]:
     """Scan text for leaked secrets, API keys, and credentials."""
-    findings: List[ScanFinding] = []
+    findings: list[ScanFinding] = []
     for category, severity, pattern in _SECRET_PATTERNS:
         for m in pattern.finditer(text):
             findings.append(ScanFinding(
@@ -125,9 +124,9 @@ def _redact(text: str, category: str) -> str:
     return text
 
 
-def scan_pii(text: str) -> List[ScanFinding]:
+def scan_pii(text: str) -> list[ScanFinding]:
     """Scan text for personally identifiable information."""
-    findings: List[ScanFinding] = []
+    findings: list[ScanFinding] = []
     for category, severity, pattern in _PII_PATTERNS:
         for m in pattern.finditer(text):
             matched = m.group()
@@ -174,9 +173,9 @@ _CYRILLIC_LOOKALIKES = set('\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u04
 _LATIN_CHARS = set('aeopscuxijh')
 
 
-def scan_invisible_text(text: str) -> List[ScanFinding]:
+def scan_invisible_text(text: str) -> list[ScanFinding]:
     """Scan text for invisible Unicode characters and homoglyphs."""
-    findings: List[ScanFinding] = []
+    findings: list[ScanFinding] = []
 
     # Check for invisible characters
     for i, ch in enumerate(text):
@@ -232,9 +231,9 @@ _PHISHING_SUBDOMAIN = re.compile(
 )
 
 
-def scan_urls(text: str) -> List[ScanFinding]:
+def scan_urls(text: str) -> list[ScanFinding]:
     """Scan text for suspicious URLs."""
-    findings: List[ScanFinding] = []
+    findings: list[ScanFinding] = []
 
     # Data URIs
     for m in _DATA_URI_PATTERN.finditer(text):
@@ -317,7 +316,7 @@ _SCRIPT_RANGES = {
 }
 
 
-def scan_language(text: str, allowed_languages: Optional[Set[str]] = None) -> List[ScanFinding]:
+def scan_language(text: str, allowed_languages: set[str] | None = None) -> list[ScanFinding]:
     """Detect dominant script/language and flag if not in allowed set."""
     if allowed_languages is None:
         allowed_languages = config.ALLOWED_LANGUAGES
@@ -401,7 +400,7 @@ def _shannon_entropy(text: str) -> float:
     return -sum((c / length) * math.log2(c / length) for c in freq.values())
 
 
-def scan_gibberish(text: str) -> List[ScanFinding]:
+def scan_gibberish(text: str) -> list[ScanFinding]:
     """Detect gibberish/adversarial text using heuristic scoring."""
     if len(text) < config.GIBBERISH_MIN_LENGTH:
         return []
@@ -505,7 +504,7 @@ _COMPLIANCE_INDICATORS = [
 ]
 
 
-def scan_refusal(text: str) -> List[ScanFinding]:
+def scan_refusal(text: str) -> list[ScanFinding]:
     """Classify LLM output as refusal, compliance, or ambiguous."""
     text_lower = text.lower()
 
@@ -562,7 +561,7 @@ _HEDGE_PHRASES = [
 ]
 
 
-def scan_ai_generated(text: str, threshold: float = 0.65) -> List[ScanFinding]:
+def scan_ai_generated(text: str, threshold: float = 0.65) -> list[ScanFinding]:
     """Heuristic scanner to fingerprint LLM-authored prompt injections.
 
     Uses five signals: sentence length uniformity, type-token ratio,
@@ -691,9 +690,9 @@ _DEFAULT_SCANNERS = {"secrets", "pii", "invisible_text", "urls", "language", "gi
 
 def scan_all(
     text: str,
-    scanners: Optional[List[str]] = None,
-    allowed_languages: Optional[Set[str]] = None,
-) -> List[ScanFinding]:
+    scanners: list[str] | None = None,
+    allowed_languages: set[str] | None = None,
+) -> list[ScanFinding]:
     """Run multiple scanners on text.
 
     Args:
@@ -711,7 +710,7 @@ def scan_all(
 
     active = set(scanners) if scanners else _DEFAULT_SCANNERS
 
-    findings: List[ScanFinding] = []
+    findings: list[ScanFinding] = []
     for name in active:
         fn = _ALL_SCANNERS.get(name)
         if fn is None:

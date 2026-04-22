@@ -27,7 +27,7 @@ Usage:
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from . import config
 from .frameworks import DETECTION_TO_OWASP_AGENTIC, build_threat_mapping
@@ -40,13 +40,13 @@ class MCPGuardResult:
     """Result of an MCPGuard interception."""
     allowed: bool
     tool_name: str
-    blocked_reason: Optional[str] = None
+    blocked_reason: str | None = None
     severity: str = "none"
     findings: list = field(default_factory=list)
     honey_triggered: bool = False
-    honey_response: Optional[dict] = None
-    sanitized_arguments: Optional[dict] = None
-    threat_mapping: Optional[dict] = None
+    honey_response: dict | None = None
+    sanitized_arguments: dict | None = None
+    threat_mapping: dict | None = None
     message_path: list = field(default_factory=list)
 
     def to_dict(self) -> dict:

@@ -19,7 +19,7 @@ Usage:
 import base64
 import re
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any
 
 from . import config
 
@@ -45,7 +45,7 @@ class MCPScanFinding:
         }
 
 
-def scan_command_injection(value: str, key: str = "") -> List[MCPScanFinding]:
+def scan_command_injection(value: str, key: str = "") -> list[MCPScanFinding]:
     """Scan a string value for shell command injection indicators."""
     findings = []
     val_lower = value.lower()
@@ -92,7 +92,7 @@ def scan_command_injection(value: str, key: str = "") -> List[MCPScanFinding]:
     return findings
 
 
-def scan_path_traversal(value: str, key: str = "") -> List[MCPScanFinding]:
+def scan_path_traversal(value: str, key: str = "") -> list[MCPScanFinding]:
     """Scan a string value for path traversal attacks."""
     findings = []
     val_lower = value.lower()
@@ -148,7 +148,7 @@ _SSRF_HOSTS = [
 ]
 
 
-def scan_ssrf(value: str, key: str = "") -> List[MCPScanFinding]:
+def scan_ssrf(value: str, key: str = "") -> list[MCPScanFinding]:
     """Scan a string value for SSRF (Server-Side Request Forgery) indicators."""
     findings = []
     val_lower = value.lower()
@@ -197,7 +197,7 @@ _CREDENTIAL_PATTERNS = [
 ]
 
 
-def scan_credentials(value: str, key: str = "") -> List[MCPScanFinding]:
+def scan_credentials(value: str, key: str = "") -> list[MCPScanFinding]:
     """Scan a string value for credentials, API keys, and tokens."""
     findings = []
     for pattern, desc in _CREDENTIAL_PATTERNS:
@@ -222,7 +222,7 @@ _HEX_RE = re.compile(r'(?:0x|\\x)[0-9a-fA-F]{8,}')
 _UNICODE_ESCAPE_RE = re.compile(r'(?:\\u[0-9a-fA-F]{4}){3,}')
 
 
-def scan_encoding_attacks(value: str, key: str = "") -> List[MCPScanFinding]:
+def scan_encoding_attacks(value: str, key: str = "") -> list[MCPScanFinding]:
     """Scan for encoded payloads (base64, hex, unicode escapes)."""
     findings = []
 
@@ -279,7 +279,7 @@ def scan_encoding_attacks(value: str, key: str = "") -> List[MCPScanFinding]:
     return findings
 
 
-def scan_prompt_injection(value: str, key: str = "") -> List[MCPScanFinding]:
+def scan_prompt_injection(value: str, key: str = "") -> list[MCPScanFinding]:
     """Scan for prompt injection patterns embedded in tool arguments."""
     findings = []
     val_lower = value.lower()
@@ -343,7 +343,7 @@ def scan_mcp_arguments(
     tool_name: str,
     arguments: Any,
     max_depth: int = 0,
-) -> List[MCPScanFinding]:
+) -> list[MCPScanFinding]:
     """
     Scan all string values in MCP tool arguments through all scanners.
 
@@ -359,7 +359,7 @@ def scan_mcp_arguments(
     """
     depth_limit = max_depth or config.MCP_MAX_ARGUMENT_DEPTH
     max_len = config.MCP_MAX_ARGUMENT_LENGTH
-    findings: List[MCPScanFinding] = []
+    findings: list[MCPScanFinding] = []
 
     def _walk(obj: Any, path: str, depth: int) -> None:
         if depth > depth_limit:

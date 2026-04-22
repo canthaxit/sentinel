@@ -16,7 +16,7 @@ import os
 import pathlib
 import threading
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 try:
     import numpy as np
@@ -28,7 +28,7 @@ except ImportError:
     _HAS_DEPS = False
 
 log = logging.getLogger(__name__)
-_UTC = timezone.utc
+_UTC = UTC
 
 
 class DriftMonitor:
@@ -349,7 +349,7 @@ class DriftMonitor:
         if resolved.stat().st_size > 50 * 1024 * 1024:
             log.warning("Drift reference file too large: %d bytes", resolved.stat().st_size)
             return False
-        with open(resolved, "r") as f:
+        with open(resolved) as f:
             data = json.load(f)
         scores = data.get("scores", [])
         if not isinstance(scores, list) or len(scores) > 1_000_000:

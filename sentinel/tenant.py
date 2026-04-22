@@ -12,7 +12,7 @@ import secrets
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # Server-side pepper for key hashing -- set via env var or generate on first run.
 # Changing this invalidates all stored API key hashes.
@@ -43,9 +43,9 @@ class Tenant:
     api_key_salt: str = ""
     enabled: bool = True
     created_at: float = field(default_factory=time.time)
-    config_overrides: Dict[str, Any] = field(default_factory=dict)
-    rate_limit: Optional[int] = None
-    tags: List[str] = field(default_factory=list)
+    config_overrides: dict[str, Any] = field(default_factory=dict)
+    rate_limit: int | None = None
+    tags: list[str] = field(default_factory=list)
 
 
 def _hash_key(api_key: str, salt: str = "") -> str:
@@ -80,8 +80,8 @@ class TenantManager:
     _UPDATABLE_FIELDS = {"name", "enabled", "tags", "rate_limit", "config_overrides"}
 
     def __init__(self):
-        self._tenants: Dict[str, Tenant] = {}
-        self._key_index: Dict[str, str] = {}  # api_key_hash -> tenant_id
+        self._tenants: dict[str, Tenant] = {}
+        self._key_index: dict[str, str] = {}  # api_key_hash -> tenant_id
         self._lock = threading.RLock()
 
     # ---- CRUD ----
@@ -90,9 +90,9 @@ class TenantManager:
         self,
         tenant_id: str,
         name: str,
-        config_overrides: Optional[Dict[str, Any]] = None,
-        rate_limit: Optional[int] = None,
-        tags: Optional[List[str]] = None,
+        config_overrides: dict[str, Any] | None = None,
+        rate_limit: int | None = None,
+        tags: list[str] | None = None,
     ) -> tuple:
         """Create a tenant and return (Tenant, plaintext_api_key).
 
@@ -120,12 +120,12 @@ class TenantManager:
 
         return tenant, api_key
 
-    def get_tenant(self, tenant_id: str) -> Optional[Tenant]:
+    def get_tenant(self, tenant_id: str) -> Tenant | None:
         """Get a tenant by ID.  Returns None if not found."""
         with self._lock:
             return self._tenants.get(tenant_id)
 
-    def list_tenants(self) -> List[Tenant]:
+    def list_tenants(self) -> list[Tenant]:
         """Return a list of all tenants."""
         with self._lock:
             return list(self._tenants.values())
@@ -173,7 +173,7 @@ class TenantManager:
 
         return new_key
 
-    def resolve_by_api_key(self, api_key: str) -> Optional[Tenant]:
+    def resolve_by_api_key(self, api_key: str) -> Tenant | None:
         """Resolve a tenant from a plaintext API key.
 
         Uses timing-safe comparison to prevent timing attacks.
@@ -202,7 +202,7 @@ class TenantManager:
 
     # ---- Per-tenant config ----
 
-    def get_effective_config(self, tenant_id: str, base_config: Dict[str, Any]) -> Dict[str, Any]:
+    def get_effective_config(self, tenant_id: str, base_config: dict[str, Any]) -> dict[str, Any]:
         """Merge tenant overrides on top of base config.
 
         Returns a new dict; does not mutate *base_config*.

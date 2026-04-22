@@ -20,7 +20,7 @@ Requires ``llama-index-core>=0.10.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class SentinelCallbackHandler:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
         # LlamaIndex BaseCallbackHandler requires event_starts_to_ignore
         # and event_ends_to_ignore in __init__
@@ -111,7 +111,7 @@ class SentinelCallbackHandler:
     def on_event_start(
         self,
         event_type: Any,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
         event_id: str = "",
         parent_id: str = "",
         **kwargs: Any,
@@ -137,19 +137,19 @@ class SentinelCallbackHandler:
     def on_event_end(
         self,
         event_type: Any,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
         event_id: str = "",
         **kwargs: Any,
     ) -> None:
         pass
 
-    def start_trace(self, trace_id: Optional[str] = None) -> None:
+    def start_trace(self, trace_id: str | None = None) -> None:
         pass
 
     def end_trace(
         self,
-        trace_id: Optional[str] = None,
-        trace_map: Optional[Dict[str, List[str]]] = None,
+        trace_id: str | None = None,
+        trace_map: dict[str, list[str]] | None = None,
     ) -> None:
         pass
 

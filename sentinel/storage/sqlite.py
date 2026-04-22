@@ -6,7 +6,7 @@ import json
 import sqlite3
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .base import _CURRENT_SCHEMA_VERSION, StorageBackend, _serialize_session
 
@@ -228,7 +228,7 @@ class SQLiteBackend(StorageBackend):
     # Shield Sessions
     # ================================================================
 
-    def save_session(self, session_id: str, data: Dict[str, Any]) -> None:
+    def save_session(self, session_id: str, data: dict[str, Any]) -> None:
         now = datetime.now().isoformat()
         serialized = _serialize_session(data)
         self._conn.execute(
@@ -239,7 +239,7 @@ class SQLiteBackend(StorageBackend):
         )
         self._conn.commit()
 
-    def load_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def load_session(self, session_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT data FROM shield_sessions WHERE session_id = ?", (session_id,)
         ).fetchone()
@@ -254,7 +254,7 @@ class SQLiteBackend(StorageBackend):
         self._conn.commit()
         return cur.rowcount > 0
 
-    def list_sessions(self) -> Dict[str, Dict[str, Any]]:
+    def list_sessions(self) -> dict[str, dict[str, Any]]:
         rows = self._conn.execute("SELECT session_id, data FROM shield_sessions").fetchall()
         result = {}
         for row in rows:
@@ -265,7 +265,7 @@ class SQLiteBackend(StorageBackend):
     # Shield Detection events
     # ================================================================
 
-    def log_detection(self, event: Dict[str, Any]) -> None:
+    def log_detection(self, event: dict[str, Any]) -> None:
         now = event.get("timestamp", datetime.now().isoformat())
         self._conn.execute(
             """INSERT INTO shield_detections
@@ -285,10 +285,10 @@ class SQLiteBackend(StorageBackend):
 
     def query_detections(
         self,
-        verdict: Optional[str] = None,
-        session_id: Optional[str] = None,
+        verdict: str | None = None,
+        session_id: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         _ALLOWED_FILTERS = {"verdict", "session_id"}
         filters = {}
         if verdict:
@@ -315,7 +315,7 @@ class SQLiteBackend(StorageBackend):
     # Shield IOCs
     # ================================================================
 
-    def save_ioc(self, ioc: Dict[str, Any]) -> None:
+    def save_ioc(self, ioc: dict[str, Any]) -> None:
         now = datetime.now().isoformat()
         ph = ioc.get("payload_hash", "")
         self._conn.execute(
@@ -329,7 +329,7 @@ class SQLiteBackend(StorageBackend):
         )
         self._conn.commit()
 
-    def query_iocs(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def query_iocs(self, limit: int = 100) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT data FROM shield_iocs ORDER BY last_seen DESC LIMIT ?", (limit,)
         ).fetchall()
@@ -339,7 +339,7 @@ class SQLiteBackend(StorageBackend):
     # Red Team
     # ================================================================
 
-    def save_redteam_result(self, result: Dict[str, Any], session_id: str) -> None:
+    def save_redteam_result(self, result: dict[str, Any], session_id: str) -> None:
         if hasattr(result, "__dict__"):
             rd = vars(result)
         else:
@@ -403,7 +403,7 @@ class SQLiteBackend(StorageBackend):
         )
         conn.commit()
 
-    def get_redteam_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def get_redteam_session(self, session_id: str) -> dict[str, Any] | None:
         conn = self._conn
         row = conn.execute(
             "SELECT * FROM redteam_sessions WHERE session_id = ?", (session_id,)
@@ -427,7 +427,7 @@ class SQLiteBackend(StorageBackend):
             "results": results,
         }
 
-    def list_redteam_sessions(self) -> List[Dict[str, Any]]:
+    def list_redteam_sessions(self) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM redteam_sessions ORDER BY started_at DESC"
         ).fetchall()
@@ -443,11 +443,11 @@ class SQLiteBackend(StorageBackend):
 
     def query_redteam_results(
         self,
-        session_id: Optional[str] = None,
-        category: Optional[str] = None,
-        result_type: Optional[str] = None,
+        session_id: str | None = None,
+        category: str | None = None,
+        result_type: str | None = None,
         limit: int = 200,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         clauses = []
         params: list = []
         if session_id:
@@ -467,7 +467,7 @@ class SQLiteBackend(StorageBackend):
         ).fetchall()
         return [self._row_to_redteam_result(r) for r in rows]
 
-    def get_redteam_statistics(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_redteam_statistics(self, session_id: str | None = None) -> dict[str, Any]:
         if session_id:
             sess = self.get_redteam_session(session_id)
         else:
@@ -481,9 +481,9 @@ class SQLiteBackend(StorageBackend):
 
         results = sess["results"]
         total = len(results)
-        by_result: Dict[str, int] = {}
-        by_category: Dict[str, int] = {}
-        by_difficulty: Dict[str, int] = {}
+        by_result: dict[str, int] = {}
+        by_category: dict[str, int] = {}
+        by_difficulty: dict[str, int] = {}
         total_time = total_conf = detected = bypassed = high = 0
 
         for r in results:
@@ -544,7 +544,7 @@ class SQLiteBackend(StorageBackend):
     # Scheduler
     # ================================================================
 
-    def save_job(self, job: Dict[str, Any]) -> None:
+    def save_job(self, job: dict[str, Any]) -> None:
         config_data = {
             k: v for k, v in job.items()
             if k not in (
@@ -572,13 +572,13 @@ class SQLiteBackend(StorageBackend):
         )
         self._conn.commit()
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM scheduler_jobs WHERE job_id = ?", (job_id,)
         ).fetchone()
         return self._row_to_job(row) if row else None
 
-    def list_jobs(self) -> List[Dict[str, Any]]:
+    def list_jobs(self) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             "SELECT * FROM scheduler_jobs ORDER BY created_at DESC"
         ).fetchall()
@@ -591,7 +591,7 @@ class SQLiteBackend(StorageBackend):
         self._conn.commit()
         return cur.rowcount > 0
 
-    def save_run(self, run: Dict[str, Any]) -> None:
+    def save_run(self, run: dict[str, Any]) -> None:
         self._conn.execute(
             """INSERT OR REPLACE INTO scheduler_runs
                (run_id, job_id, started_at, completed_at, status,
@@ -614,7 +614,7 @@ class SQLiteBackend(StorageBackend):
         )
         self._conn.commit()
 
-    def get_run_history(self, limit: int = 50, job_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_run_history(self, limit: int = 50, job_id: str | None = None) -> list[dict[str, Any]]:
         if job_id:
             rows = self._conn.execute(
                 "SELECT * FROM scheduler_runs WHERE job_id = ? ORDER BY started_at DESC LIMIT ?",
@@ -631,7 +631,7 @@ class SQLiteBackend(StorageBackend):
     # Threat Intel IOCs
     # ================================================================
 
-    def save_threat_ioc(self, ioc: Dict[str, Any]) -> None:
+    def save_threat_ioc(self, ioc: dict[str, Any]) -> None:
         now = datetime.now().isoformat()
         self._conn.execute(
             """INSERT INTO threat_intel_iocs
@@ -673,12 +673,12 @@ class SQLiteBackend(StorageBackend):
 
     def query_threat_iocs(
         self,
-        ioc_type: Optional[str] = None,
-        severity: Optional[str] = None,
-        threat_type: Optional[str] = None,
-        source: Optional[str] = None,
+        ioc_type: str | None = None,
+        severity: str | None = None,
+        threat_type: str | None = None,
+        source: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         clauses: list = []
         params: list = []
         if ioc_type:
@@ -701,20 +701,20 @@ class SQLiteBackend(StorageBackend):
         ).fetchall()
         return [self._row_to_threat_ioc(r) for r in rows]
 
-    def get_threat_ioc_by_hash(self, payload_hash: str) -> Optional[Dict[str, Any]]:
+    def get_threat_ioc_by_hash(self, payload_hash: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM threat_intel_iocs WHERE payload_hash = ?", (payload_hash,)
         ).fetchone()
         return self._row_to_threat_ioc(row) if row else None
 
-    def get_threat_statistics(self) -> Dict[str, Any]:
+    def get_threat_statistics(self) -> dict[str, Any]:
         conn = self._conn
         total = conn.execute("SELECT COUNT(*) FROM threat_intel_iocs").fetchone()[0]
         total_sightings = conn.execute(
             "SELECT COALESCE(SUM(sighting_count), 0) FROM threat_intel_iocs"
         ).fetchone()[0]
 
-        stats: Dict[str, Any] = {
+        stats: dict[str, Any] = {
             "total_iocs": total,
             "total_sightings": total_sightings,
             "by_type": {},
@@ -735,7 +735,7 @@ class SQLiteBackend(StorageBackend):
     # MCP Events
     # ================================================================
 
-    def log_mcp_event(self, event: Dict[str, Any]) -> None:
+    def log_mcp_event(self, event: dict[str, Any]) -> None:
         now = event.get("timestamp", datetime.now().isoformat())
         self._conn.execute(
             """INSERT INTO mcp_events
@@ -758,10 +758,10 @@ class SQLiteBackend(StorageBackend):
 
     def query_mcp_events(
         self,
-        tool_name: Optional[str] = None,
-        allowed: Optional[bool] = None,
+        tool_name: str | None = None,
+        allowed: bool | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         clauses: list = []
         params: list = []
         if tool_name:
@@ -803,7 +803,7 @@ class SQLiteBackend(StorageBackend):
     # ================================================================
 
     @staticmethod
-    def _row_to_redteam_result(row) -> Dict[str, Any]:
+    def _row_to_redteam_result(row) -> dict[str, Any]:
         d = dict(row)
         for key in ("bypass_indicators", "safe_indicators"):
             if key in d and isinstance(d[key], str):
@@ -823,7 +823,7 @@ class SQLiteBackend(StorageBackend):
         return d
 
     @staticmethod
-    def _row_to_job(row) -> Dict[str, Any]:
+    def _row_to_job(row) -> dict[str, Any]:
         d = dict(row)
         if "config" in d and isinstance(d["config"], str):
             try:
@@ -838,7 +838,7 @@ class SQLiteBackend(StorageBackend):
         return d
 
     @staticmethod
-    def _row_to_run(row) -> Dict[str, Any]:
+    def _row_to_run(row) -> dict[str, Any]:
         d = dict(row)
         if "config" in d and isinstance(d["config"], str):
             try:
@@ -848,7 +848,7 @@ class SQLiteBackend(StorageBackend):
         return d
 
     @staticmethod
-    def _row_to_threat_ioc(row) -> Dict[str, Any]:
+    def _row_to_threat_ioc(row) -> dict[str, Any]:
         d = dict(row)
         for key in ("mitre_techniques", "owasp_categories"):
             if key in d and isinstance(d[key], str):

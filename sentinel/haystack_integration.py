@@ -28,7 +28,7 @@ Requires ``haystack-ai>=2.0.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -77,9 +77,9 @@ class ShieldGuard:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
-    def run(self, text: str) -> Dict[str, Any]:
+    def run(self, text: str) -> dict[str, Any]:
         """Screen *text* through Shield.
 
         Args:

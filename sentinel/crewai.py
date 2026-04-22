@@ -36,7 +36,7 @@ Requires ``crewai>=0.50.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ class ShieldTaskCallback:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     def __call__(self, output: Any) -> None:
         """Screen the task output text."""
@@ -141,7 +141,7 @@ class ShieldGuardCallback:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     def __call__(self, step_output: Any) -> None:
         """Screen the step output text."""
@@ -190,7 +190,7 @@ class ShieldTool:
         self.shield = shield
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     def _run(self, text: str) -> str:
         """Execute the tool: screen text through Shield."""

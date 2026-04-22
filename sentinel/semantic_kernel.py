@@ -28,7 +28,8 @@ Requires ``semantic-kernel>=1.0.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ class ShieldPromptFilter:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     async def on_prompt_render(
         self, context: Any, next_handler: Callable,
@@ -136,7 +137,7 @@ class ShieldFunctionFilter:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     async def on_function_invocation(
         self, context: Any, next_handler: Callable,

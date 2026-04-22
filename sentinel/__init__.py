@@ -229,9 +229,16 @@ class ShieldResult:
     """Result of a Shield analysis."""
 
     __slots__ = (
-        "verdict", "ml_result", "llm_verdict", "sanitizations",
-        "session", "detection_method", "blocked", "threat_mapping",
-        "message_path", "failed_open",
+        "blocked",
+        "detection_method",
+        "failed_open",
+        "llm_verdict",
+        "message_path",
+        "ml_result",
+        "sanitizations",
+        "session",
+        "threat_mapping",
+        "verdict",
     )
 
     def __init__(self, verdict, ml_result=None, llm_verdict=None,

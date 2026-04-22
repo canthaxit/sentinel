@@ -83,7 +83,7 @@ class MLClient:
         # 3. DNS resolution check — a domain name could resolve to a private IP
         try:
             addrinfos = socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
-            for family, _type, _proto, _canonname, sockaddr in addrinfos:
+            for _family, _type, _proto, _canonname, sockaddr in addrinfos:
                 resolved_ip = sockaddr[0]
                 if self._is_dangerous_ip(resolved_ip):
                     log.warning(
@@ -109,7 +109,7 @@ class MLClient:
         parsed = urlparse(self.api_url)
         hostname = parsed.hostname or ""
         try:
-            for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, parsed.port or 80):
+            for _family, _, _, _, sockaddr in socket.getaddrinfo(hostname, parsed.port or 80):
                 ip = ipaddress.ip_address(sockaddr[0])
                 if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
                     log.warning("ANOMALY_API_URL DNS rebinding detected: %s -> %s", hostname, ip)

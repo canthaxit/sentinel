@@ -23,8 +23,9 @@ import logging
 import socketserver
 import threading
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 log = logging.getLogger("sentinel.honey_services")
 
@@ -48,7 +49,7 @@ class HoneyServiceConfig:
     port: int
     protocol: str = "http"
     banner: str = ""
-    responses: Dict[str, str] = field(default_factory=dict)
+    responses: dict[str, str] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -62,14 +63,14 @@ class _HoneyHTTPHandler(socketserver.BaseRequestHandler):
     Python's descriptor protocol turning callables into unbound methods.
     """
 
-    _handler_ctx: Dict[str, Any] = {}
+    _handler_ctx: dict[str, Any] = {}
 
     @property
-    def _service_config(self) -> Optional[HoneyServiceConfig]:
+    def _service_config(self) -> HoneyServiceConfig | None:
         return self._handler_ctx.get("service_config")
 
     @property
-    def _trigger_cb(self) -> Optional[Callable]:
+    def _trigger_cb(self) -> Callable | None:
         return self._handler_ctx.get("trigger_callback")
 
     def handle(self):
@@ -126,7 +127,7 @@ class _HoneyHTTPHandler(socketserver.BaseRequestHandler):
             if cfg and cfg.banner:
                 server_name = cfg.banner
 
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.UTC)
             date_str = now.strftime("%a, %d %b %Y %H:%M:%S GMT")
 
             body_bytes = body.encode("utf-8")
@@ -140,7 +141,7 @@ class _HoneyHTTPHandler(socketserver.BaseRequestHandler):
                 f"X-Powered-By: PHP/8.1.2\r\n"
                 f"Cache-Control: no-store\r\n"
                 f"\r\n"
-            ).encode("utf-8") + body_bytes
+            ).encode() + body_bytes
 
             self.request.sendall(response)
 
@@ -165,11 +166,11 @@ class HoneyHTTPService:
     """
 
     def __init__(self, config: HoneyServiceConfig,
-                 trigger_callback: Optional[Callable] = None):
+                 trigger_callback: Callable | None = None):
         self.config = config
         self.trigger_callback = trigger_callback
-        self._server: Optional[socketserver.TCPServer] = None
-        self._thread: Optional[threading.Thread] = None
+        self._server: socketserver.TCPServer | None = None
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         """Start the HTTP honey service in a background thread."""
@@ -230,8 +231,8 @@ class HoneyServiceRegistry:
 
     def __init__(self, max_triggers: int = _MAX_TRIGGERS):
         self._lock = threading.RLock()
-        self._services: Dict[str, HoneyHTTPService] = {}
-        self._configs: Dict[str, HoneyServiceConfig] = {}
+        self._services: dict[str, HoneyHTTPService] = {}
+        self._configs: dict[str, HoneyServiceConfig] = {}
         self._triggers: deque = deque(maxlen=max_triggers)
 
     def _trigger_callback(self, event: dict) -> None:
@@ -276,7 +277,7 @@ class HoneyServiceRegistry:
         for name in names:
             self.stop_service(name)
 
-    def list_services(self) -> List[Dict[str, Any]]:
+    def list_services(self) -> list[dict[str, Any]]:
         """Return metadata for all registered services."""
         with self._lock:
             return [
@@ -290,7 +291,7 @@ class HoneyServiceRegistry:
                 for cfg in self._configs.values()
             ]
 
-    def get_triggers(self, limit: int = 100) -> List[dict]:
+    def get_triggers(self, limit: int = 100) -> list[dict]:
         """Return recent trigger events."""
         with self._lock:
             triggers = list(self._triggers)
@@ -311,7 +312,7 @@ class HoneyServiceRegistry:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def generate_topology(profile: str = "enterprise") -> List[HoneyServiceConfig]:
+    def generate_topology(profile: str = "enterprise") -> list[HoneyServiceConfig]:
         """Generate a list of realistic honey service configs for a profile.
 
         Args:
@@ -332,7 +333,7 @@ class HoneyServiceRegistry:
 # Topology templates
 # ---------------------------------------------------------------------------
 
-def _enterprise_topology() -> List[HoneyServiceConfig]:
+def _enterprise_topology() -> list[HoneyServiceConfig]:
     """Enterprise IT topology: admin panels, webmail, LDAP, SMB-like."""
     return [
         HoneyServiceConfig(
@@ -411,7 +412,7 @@ def _enterprise_topology() -> List[HoneyServiceConfig]:
     ]
 
 
-def _ics_scada_topology() -> List[HoneyServiceConfig]:
+def _ics_scada_topology() -> list[HoneyServiceConfig]:
     """ICS/SCADA topology: HMI panels, engineering workstation, historian."""
     return [
         HoneyServiceConfig(

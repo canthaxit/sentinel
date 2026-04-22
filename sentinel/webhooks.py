@@ -22,7 +22,7 @@ import hashlib
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 _SEVERITY_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 
-def determine_severity(result_dict: Dict[str, Any]) -> str:
+def determine_severity(result_dict: dict[str, Any]) -> str:
     """Map a ShieldResult dict to a severity string."""
     ml_score = result_dict.get("ml_score") or 0
     escalated = result_dict.get("session_escalated", False)
@@ -53,7 +53,7 @@ def determine_severity(result_dict: Dict[str, Any]) -> str:
 class WebhookNotifier:
     """Base notifier -- subclasses implement ``notify()``."""
 
-    def notify(self, event: Dict[str, Any]) -> bool:
+    def notify(self, event: dict[str, Any]) -> bool:
         """Send *event* to the external service.  Return True on success."""
         raise NotImplementedError
 
@@ -63,11 +63,11 @@ class WebhookNotifier:
 class SlackNotifier(WebhookNotifier):
     """Post Block Kit messages to a Slack Incoming Webhook URL."""
 
-    def __init__(self, webhook_url: str, channel: Optional[str] = None):
+    def __init__(self, webhook_url: str, channel: str | None = None):
         self.webhook_url = webhook_url
         self.channel = channel
 
-    def notify(self, event: Dict[str, Any]) -> bool:
+    def notify(self, event: dict[str, Any]) -> bool:
         severity = event.get("severity", "unknown")
         verdict = event.get("verdict", "UNKNOWN")
         event_type = event.get("event_type", "detection")
@@ -107,7 +107,7 @@ class SlackNotifier(WebhookNotifier):
                          "text": f"*Preview:* ```{preview}```"},
             })
 
-        payload: Dict[str, Any] = {"blocks": blocks}
+        payload: dict[str, Any] = {"blocks": blocks}
         if self.channel:
             payload["channel"] = self.channel
 
@@ -131,7 +131,7 @@ class TeamsNotifier(WebhookNotifier):
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
-    def notify(self, event: Dict[str, Any]) -> bool:
+    def notify(self, event: dict[str, Any]) -> bool:
         severity = event.get("severity", "unknown")
         verdict = event.get("verdict", "UNKNOWN")
         event_type = event.get("event_type", "detection")
@@ -201,7 +201,7 @@ class PagerDutyNotifier(WebhookNotifier):
     def __init__(self, routing_key: str):
         self.routing_key = routing_key
 
-    def notify(self, event: Dict[str, Any]) -> bool:
+    def notify(self, event: dict[str, Any]) -> bool:
         severity = event.get("severity", "warning")
         pd_severity = {"critical": "critical", "high": "error",
                        "medium": "warning", "low": "info"}.get(severity, "warning")
@@ -252,11 +252,11 @@ class WebhookManager:
 
     def __init__(
         self,
-        notifiers: Optional[List[WebhookNotifier]] = None,
+        notifiers: list[WebhookNotifier] | None = None,
         severity_threshold: str = "high",
         max_concurrent: int = 4,
     ):
-        self.notifiers: List[WebhookNotifier] = notifiers or []
+        self.notifiers: list[WebhookNotifier] = notifiers or []
         self.severity_threshold = severity_threshold
         self._executor = ThreadPoolExecutor(
             max_workers=max_concurrent,
@@ -268,26 +268,26 @@ class WebhookManager:
         actual = _SEVERITY_LEVELS.get(severity, 0)
         return actual >= threshold
 
-    def _dispatch(self, event: Dict[str, Any]) -> None:
+    def _dispatch(self, event: dict[str, Any]) -> None:
         """Fire each notifier via bounded thread pool."""
         for notifier in self.notifiers:
             self._executor.submit(self._safe_notify, notifier, event)
 
     def _safe_notify(self, notifier: WebhookNotifier,
-                     event: Dict[str, Any]) -> None:
+                     event: dict[str, Any]) -> None:
         try:
             notifier.notify(event)
         except Exception:
             log.exception("Notifier %s failed", type(notifier).__name__)
 
-    def _build_event(self, event_type: str, **kwargs) -> Dict[str, Any]:
+    def _build_event(self, event_type: str, **kwargs) -> dict[str, Any]:
         event = {"event_type": event_type, "timestamp": time.time()}
         event.update(kwargs)
         return event
 
     def notify_detection(
         self,
-        result_dict: Dict[str, Any],
+        result_dict: dict[str, Any],
         session_id: str = "",
         source_ip: str = "",
         user_input: str = "",

@@ -25,7 +25,8 @@ import hmac
 import json
 import logging
 import os
-from typing import Any, Callable, Optional, Set
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -61,13 +62,13 @@ class ShieldMiddleware(BaseHTTPMiddleware):
         shield: Shield,
         mode: str = "block",
         session_header: str = "X-Session-ID",
-        excluded_paths: Optional[Set[str]] = None,
+        excluded_paths: set[str] | None = None,
     ):
         super().__init__(app)
         self.shield = shield
         self.mode = mode
         self.session_header = session_header
-        self.excluded_paths: Set[str] = excluded_paths or set()
+        self.excluded_paths: set[str] = excluded_paths or set()
 
     async def dispatch(self, request: Request, call_next: Callable) -> Any:
         # Skip safe methods
@@ -208,7 +209,7 @@ def create_shield_router(
 
     # ---- auth dependency ----
 
-    async def verify_api_key(x_api_key: Optional[str] = Header(None)):
+    async def verify_api_key(x_api_key: str | None = Header(None)):
         expected = os.getenv("SENTINEL_API_KEY", "")
         if not expected:
             if allow_unauthenticated:

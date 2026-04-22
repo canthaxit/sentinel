@@ -19,7 +19,6 @@ Usage:
 """
 
 import dataclasses
-from typing import FrozenSet, Optional, Tuple
 
 
 class PolicyViolation(Exception):
@@ -45,11 +44,11 @@ class AgentPolicy:
         forbidden_actions: Set of high-level action labels that are always
             blocked (e.g., "delete_production_db", "send_email").
     """
-    allowed_tools: FrozenSet[str] = dataclasses.field(default_factory=frozenset)
-    denied_tools: FrozenSet[str] = dataclasses.field(default_factory=frozenset)
+    allowed_tools: frozenset[str] = dataclasses.field(default_factory=frozenset)
+    denied_tools: frozenset[str] = dataclasses.field(default_factory=frozenset)
     max_delegation_depth: int = 5
     max_tool_calls_per_turn: int = 50
-    forbidden_actions: FrozenSet[str] = dataclasses.field(default_factory=frozenset)
+    forbidden_actions: frozenset[str] = dataclasses.field(default_factory=frozenset)
 
     def __post_init__(self):
         # Coerce mutable sets to frozensets for immutability
@@ -69,7 +68,7 @@ class PolicyValidator:
 
     def validate_tool_call(
         self, tool_name: str, depth: int = 0, call_count: int = 0
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Check whether a tool call is permitted.
 
         Args:
@@ -104,7 +103,7 @@ class PolicyValidator:
 
         return True, None
 
-    def validate_action(self, action_name: str) -> Tuple[bool, Optional[str]]:
+    def validate_action(self, action_name: str) -> tuple[bool, str | None]:
         """Check whether a high-level action is permitted.
 
         Args:

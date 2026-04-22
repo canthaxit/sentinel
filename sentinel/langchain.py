@@ -20,7 +20,7 @@ Requires ``langchain-core>=0.1.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ class SentinelCallbackHandler(_LCBase):  # type: ignore[misc]
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     # ---- core screening ----
 
@@ -91,8 +91,8 @@ class SentinelCallbackHandler(_LCBase):  # type: ignore[misc]
 
     def on_llm_start(
         self,
-        serialized: Dict[str, Any],
-        prompts: List[str],
+        serialized: dict[str, Any],
+        prompts: list[str],
         **kwargs: Any,
     ) -> None:
         for prompt in prompts:
@@ -100,8 +100,8 @@ class SentinelCallbackHandler(_LCBase):  # type: ignore[misc]
 
     def on_chat_model_start(
         self,
-        serialized: Dict[str, Any],
-        messages: List[Any],
+        serialized: dict[str, Any],
+        messages: list[Any],
         **kwargs: Any,
     ) -> None:
         # messages is List[List[BaseMessage]]; screen the last user message
@@ -114,8 +114,8 @@ class SentinelCallbackHandler(_LCBase):  # type: ignore[misc]
 
     def on_chain_start(
         self,
-        serialized: Dict[str, Any],
-        inputs: Union[Dict[str, Any], Any],
+        serialized: dict[str, Any],
+        inputs: dict[str, Any] | Any,
         **kwargs: Any,
     ) -> None:
         if isinstance(inputs, dict):
@@ -127,7 +127,7 @@ class SentinelCallbackHandler(_LCBase):  # type: ignore[misc]
 
     def on_tool_start(
         self,
-        serialized: Dict[str, Any],
+        serialized: dict[str, Any],
         input_str: str,
         **kwargs: Any,
     ) -> None:
@@ -141,7 +141,7 @@ class SentinelCallbackHandler(_LCBase):  # type: ignore[misc]
     def on_llm_error(self, error: BaseException, **kwargs: Any) -> None:
         pass
 
-    def on_chain_end(self, outputs: Dict[str, Any], **kwargs: Any) -> None:
+    def on_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
         pass
 
     def on_chain_error(self, error: BaseException, **kwargs: Any) -> None:

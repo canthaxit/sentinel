@@ -14,7 +14,6 @@ Usage:
 """
 
 import dataclasses
-from typing import List, Optional, Set
 
 from .scanners import ScanFinding, scan_all
 
@@ -22,10 +21,10 @@ from .scanners import ScanFinding, scan_all
 class OutputScanResult:
     """Result of scanning LLM output text."""
 
-    __slots__ = ("findings", "blocked", "block_reason")
+    __slots__ = ("block_reason", "blocked", "findings")
 
-    def __init__(self, findings: List[ScanFinding], blocked: bool = False,
-                 block_reason: Optional[str] = None):
+    def __init__(self, findings: list[ScanFinding], blocked: bool = False,
+                 block_reason: str | None = None):
         self.findings = findings
         self.blocked = blocked
         self.block_reason = block_reason
@@ -57,9 +56,9 @@ class OutputScanner:
         allowed_languages: Passed to language scanner
     """
 
-    def __init__(self, scanners: Optional[List[str]] = None,
-                 block_on: Optional[Set[str]] = None,
-                 allowed_languages: Optional[Set[str]] = None):
+    def __init__(self, scanners: list[str] | None = None,
+                 block_on: set[str] | None = None,
+                 allowed_languages: set[str] | None = None):
         self.scanners = scanners
         self.block_on = block_on or {"critical"}
         self.allowed_languages = allowed_languages

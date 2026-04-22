@@ -12,7 +12,6 @@ import os
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, Optional, Set
 
 
 class Permission(enum.Enum):
@@ -31,7 +30,7 @@ class Permission(enum.Enum):
 
 # ---- Built-in role definitions ----
 
-ROLE_PERMISSIONS: Dict[str, FrozenSet[Permission]] = {
+ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
     "admin": frozenset(Permission),
     "analyst": frozenset({
         Permission.ANALYZE,
@@ -51,7 +50,7 @@ ROLE_PERMISSIONS: Dict[str, FrozenSet[Permission]] = {
 }
 
 
-def _hash_password(password: str, salt: Optional[bytes] = None) -> str:
+def _hash_password(password: str, salt: bytes | None = None) -> str:
     """Hash a password with PBKDF2-HMAC-SHA256 (600k iterations).
 
     Returns ``salt_hex:hash_hex``.
@@ -81,7 +80,7 @@ class User:
     username: str
     password_hash: str = ""
     role: str = "viewer"
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
     enabled: bool = True
     created_at: float = field(default_factory=time.time)
 
@@ -106,30 +105,30 @@ class RBACManager:
 
     def __init__(self, max_failed_attempts: int = 5,
                  lockout_window_seconds: int = 900):
-        self._users: Dict[str, User] = {}
-        self._username_index: Dict[str, str] = {}  # username -> user_id
-        self._custom_roles: Dict[str, FrozenSet[Permission]] = {}
+        self._users: dict[str, User] = {}
+        self._username_index: dict[str, str] = {}  # username -> user_id
+        self._custom_roles: dict[str, frozenset[Permission]] = {}
         self._lock = threading.RLock()
         # Account lockout tracking: username -> list of failure timestamps
-        self._failed_attempts: Dict[str, list] = {}
+        self._failed_attempts: dict[str, list] = {}
         self._max_failed_attempts = max_failed_attempts
         self._lockout_window = lockout_window_seconds
 
     # ---- Role management ----
 
-    def get_role_permissions(self, role: str) -> FrozenSet[Permission]:
+    def get_role_permissions(self, role: str) -> frozenset[Permission]:
         """Return the permission set for a role name."""
         with self._lock:
             if role in self._custom_roles:
                 return self._custom_roles[role]
         return ROLE_PERMISSIONS.get(role, frozenset())
 
-    def create_role(self, name: str, permissions: Set[Permission]) -> None:
+    def create_role(self, name: str, permissions: set[Permission]) -> None:
         """Create a custom role with the given permissions."""
         with self._lock:
             self._custom_roles[name] = frozenset(permissions)
 
-    def list_roles(self) -> Dict[str, FrozenSet[Permission]]:
+    def list_roles(self) -> dict[str, frozenset[Permission]]:
         """Return all roles (built-in + custom)."""
         with self._lock:
             merged = dict(ROLE_PERMISSIONS)
@@ -144,7 +143,7 @@ class RBACManager:
         username: str,
         password: str,
         role: str = "viewer",
-        tenant_id: Optional[str] = None,
+        tenant_id: str | None = None,
     ) -> User:
         """Create a new user.  Password is hashed immediately."""
         pw_hash = _hash_password(password)
@@ -166,11 +165,11 @@ class RBACManager:
 
         return user
 
-    def get_user(self, user_id: str) -> Optional[User]:
+    def get_user(self, user_id: str) -> User | None:
         with self._lock:
             return self._users.get(user_id)
 
-    def get_user_by_username(self, username: str) -> Optional[User]:
+    def get_user_by_username(self, username: str) -> User | None:
         with self._lock:
             uid = self._username_index.get(username)
             if uid is None:
@@ -262,7 +261,7 @@ class RBACManager:
 
     # ---- Authentication ----
 
-    def authenticate(self, username: str, password: str) -> Optional[User]:
+    def authenticate(self, username: str, password: str) -> User | None:
         """Authenticate by username + password.
 
         Returns the User on success, None on failure.

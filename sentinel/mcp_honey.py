@@ -26,7 +26,7 @@ import string
 import threading
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -59,7 +59,7 @@ def _rand_id(prefix: str = "", length: int = 12) -> str:
     return prefix + secrets.token_hex(length // 2 + 1)[:length]
 
 
-def _fake_db_response(arguments: Dict[str, Any]) -> dict:
+def _fake_db_response(arguments: dict[str, Any]) -> dict:
     """Generate a fake database query response."""
     # `query` is read for future log correlation but not yet used in the
     # response payload.
@@ -78,7 +78,7 @@ def _fake_db_response(arguments: Dict[str, Any]) -> dict:
     }
 
 
-def _fake_config_response(arguments: Dict[str, Any]) -> dict:
+def _fake_config_response(arguments: dict[str, Any]) -> dict:
     """Generate a fake system config response."""
     config_path = arguments.get("config_path", "/etc/app/config.yaml")
     return {
@@ -102,14 +102,14 @@ def _fake_config_response(arguments: Dict[str, Any]) -> dict:
             },
         },
         "last_modified": (
-            datetime.datetime.now(datetime.timezone.utc)
+            datetime.datetime.now(datetime.UTC)
             - datetime.timedelta(days=secrets.randbelow(30) + 1,
                                  hours=secrets.randbelow(24))
         ).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
 
-def _fake_command_response(arguments: Dict[str, Any]) -> dict:
+def _fake_command_response(arguments: dict[str, Any]) -> dict:
     """Generate a fake shell command execution response."""
     command = arguments.get("command", "whoami")
     return {
@@ -122,7 +122,7 @@ def _fake_command_response(arguments: Dict[str, Any]) -> dict:
     }
 
 
-def _fake_credential_response(arguments: Dict[str, Any]) -> dict:
+def _fake_credential_response(arguments: dict[str, Any]) -> dict:
     """Generate a fake credential store response."""
     username = arguments.get("username", "admin")
     service = arguments.get("service", "default")
@@ -131,7 +131,7 @@ def _fake_credential_response(arguments: Dict[str, Any]) -> dict:
     pw_length = secrets.randbelow(9) + 16  # 16-24 chars
     fake_pass = "".join(secrets.choice(alphabet) for _ in range(pw_length))
     # Randomize timestamps relative to now
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     rotated = now - datetime.timedelta(days=secrets.randbelow(30) + 1)
     expires = now + datetime.timedelta(days=secrets.randbelow(120) + 60)
     return {
@@ -144,7 +144,7 @@ def _fake_credential_response(arguments: Dict[str, Any]) -> dict:
     }
 
 
-def _fake_api_proxy_response(arguments: Dict[str, Any]) -> dict:
+def _fake_api_proxy_response(arguments: dict[str, Any]) -> dict:
     """Generate a fake internal API proxy response."""
     endpoint = arguments.get("endpoint", "/api/v1/status")
     return {
@@ -302,8 +302,8 @@ class HoneyToolRegistry:
     _MAX_TRIGGERS = 10000
 
     def __init__(self, register_defaults: bool = True):
-        self._tools: Dict[str, HoneyToolDef] = {}
-        self._response_generators: Dict[str, Any] = {}
+        self._tools: dict[str, HoneyToolDef] = {}
+        self._response_generators: dict[str, Any] = {}
         self._lock = threading.RLock()
         self._triggers: deque = deque(maxlen=self._MAX_TRIGGERS)
 
@@ -337,12 +337,12 @@ class HoneyToolRegistry:
         with self._lock:
             return name in self._tools
 
-    def get_tool(self, name: str) -> Optional[HoneyToolDef]:
+    def get_tool(self, name: str) -> HoneyToolDef | None:
         """Get the definition for a honey tool."""
         with self._lock:
             return self._tools.get(name)
 
-    def get_response(self, name: str, arguments: Dict[str, Any]) -> Optional[dict]:
+    def get_response(self, name: str, arguments: dict[str, Any]) -> dict | None:
         """Generate a fake response for a honey tool trigger.
 
         Args:
@@ -378,7 +378,7 @@ class HoneyToolRegistry:
                 return dict(tool_def.response_template)
             return {"status": "success", "result": "Operation completed"}
 
-    def list_tool_definitions(self) -> List[dict]:
+    def list_tool_definitions(self) -> list[dict]:
         """Return MCP-formatted tool definitions for all honey tools.
 
         These can be injected into an MCP server's tool list so the LLM
@@ -397,7 +397,7 @@ class HoneyToolRegistry:
                 for tool in self._tools.values()
             ]
 
-    def get_triggers(self, limit: int = 100) -> List[dict]:
+    def get_triggers(self, limit: int = 100) -> list[dict]:
         """Return recent honey tool triggers."""
         with self._lock:
             triggers = list(self._triggers)

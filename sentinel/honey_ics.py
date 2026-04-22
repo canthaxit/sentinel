@@ -29,7 +29,8 @@ import socketserver
 import struct
 import threading
 from collections import deque
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger("sentinel.honey_ics")
 
@@ -58,7 +59,7 @@ EXCEPTION_FLAG = 0x80
 # Simulated register bank
 # ---------------------------------------------------------------------------
 
-def _build_default_registers() -> Dict[int, int]:
+def _build_default_registers() -> dict[int, int]:
     """Initialize holding registers with plausible ICS sensor values.
 
     Register layout (mimics a water treatment plant):
@@ -71,7 +72,7 @@ def _build_default_registers() -> Dict[int, int]:
         60-69: Status words (bitfields)
         100+:  Setpoints
     """
-    regs: Dict[int, int] = {}
+    regs: dict[int, int] = {}
 
     # Temperature sensors (e.g., 72.4 degC = 724 in 0.1 degC units)
     temps = [724, 681, 753, 698, 712, 695, 730, 710, 688, 741]
@@ -129,11 +130,11 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
     """
 
     # Populated by HoneyModbusServer.start() on a dynamically-created subclass.
-    _handler_ctx: Dict[str, Any] = {}
+    _handler_ctx: dict[str, Any] = {}
 
     # Convenience accessors for the context dict
     @property
-    def _registers(self) -> Dict[int, int]:
+    def _registers(self) -> dict[int, int]:
         return self._handler_ctx["registers"]
 
     @property
@@ -141,15 +142,15 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
         return self._handler_ctx["register_lock"]
 
     @property
-    def _trigger_cb(self) -> Optional[Callable]:
+    def _trigger_cb(self) -> Callable | None:
         return self._handler_ctx.get("trigger_callback")
 
     @property
-    def _ilog(self) -> Optional[deque]:
+    def _ilog(self) -> deque | None:
         return self._handler_ctx.get("interaction_log")
 
     @property
-    def _ilog_lock(self) -> Optional[threading.RLock]:
+    def _ilog_lock(self) -> threading.RLock | None:
         return self._handler_ctx.get("log_lock")
 
     def handle(self):
@@ -207,7 +208,7 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
                 log.debug("MODBUS handler error: %s", exc)
                 break
 
-    def _recv_exact(self, n: int) -> Optional[bytes]:
+    def _recv_exact(self, n: int) -> bytes | None:
         """Receive exactly n bytes, or return None on disconnect."""
         data = b""
         while len(data) < n:
@@ -357,7 +358,7 @@ class HoneyModbusServer:
     _MAX_LOG = 50000
 
     def __init__(self, port: int = 502,
-                 trigger_callback: Optional[Callable] = None,
+                 trigger_callback: Callable | None = None,
                  max_log_entries: int = _MAX_LOG):
         self.port = port
         self.trigger_callback = trigger_callback
@@ -365,8 +366,8 @@ class HoneyModbusServer:
         self._register_lock = threading.RLock()
         self._interaction_log: deque = deque(maxlen=max_log_entries)
         self._log_lock = threading.RLock()
-        self._server: Optional[socketserver.TCPServer] = None
-        self._thread: Optional[threading.Thread] = None
+        self._server: socketserver.TCPServer | None = None
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         """Start the MODBUS honey server in a background daemon thread."""
@@ -417,7 +418,7 @@ class HoneyModbusServer:
         with self._register_lock:
             self._registers[address] = value & 0xFFFF
 
-    def get_interactions(self, limit: int = 100) -> List[dict]:
+    def get_interactions(self, limit: int = 100) -> list[dict]:
         """Return recent MODBUS interaction events."""
         with self._log_lock:
             items = list(self._interaction_log)

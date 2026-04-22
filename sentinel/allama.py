@@ -38,7 +38,7 @@ import hashlib
 import logging
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -89,13 +89,13 @@ class AllamaNotifier(WebhookNotifier):
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        workflow_id: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
-        api_key: Optional[str] = None,
-        timeout: Optional[int] = None,
-        verify_ssl: Optional[bool] = None,
-        tags: Optional[List[str]] = None,
+        base_url: str | None = None,
+        workflow_id: str | None = None,
+        webhook_secret: str | None = None,
+        api_key: str | None = None,
+        timeout: int | None = None,
+        verify_ssl: bool | None = None,
+        tags: list[str] | None = None,
     ):
         self.base_url = (base_url or os.getenv("ALLAMA_BASE_URL", "")).rstrip("/")
         self.workflow_id = workflow_id or os.getenv("ALLAMA_WORKFLOW_ID", "shield-alert")
@@ -126,7 +126,7 @@ class AllamaNotifier(WebhookNotifier):
     # ---- payload construction ----
 
     @staticmethod
-    def _dedup_key(event: Dict[str, Any]) -> str:
+    def _dedup_key(event: dict[str, Any]) -> str:
         """SHA-256 dedup key from session_id:event_type:verdict."""
         session_id = event.get("session_id", "unknown")
         event_type = event.get("event_type", "detection")
@@ -134,13 +134,13 @@ class AllamaNotifier(WebhookNotifier):
         raw = f"{session_id}:{event_type}:{verdict}"
         return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
-    def _build_alert_payload(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_alert_payload(self, event: dict[str, Any]) -> dict[str, Any]:
         """Map a Shield event dict to an OCSF-aligned alert payload."""
         severity = event.get("severity", "medium")
         event_type = event.get("event_type", "detection")
         detection_method = event.get("detection_method", "unknown")
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "alert_id": self._dedup_key(event),
             "source": "sentinel",
             "event_type": event_type,
@@ -176,7 +176,7 @@ class AllamaNotifier(WebhookNotifier):
 
     # ---- notify (WebhookNotifier interface) ----
 
-    def notify(self, event: Dict[str, Any]) -> bool:
+    def notify(self, event: dict[str, Any]) -> bool:
         """Send *event* to the Allama webhook endpoint.
 
         Returns True on success, False on failure.  Never raises.
@@ -186,7 +186,7 @@ class AllamaNotifier(WebhookNotifier):
             return False
 
         payload = self._build_alert_payload(event)
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
+        headers: dict[str, str] = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
@@ -229,7 +229,7 @@ class AllamaClient:
     def __init__(
         self,
         base_url: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         timeout: int = 10,
         verify_ssl: bool = True,
     ):
@@ -262,7 +262,7 @@ class AllamaClient:
 
     # ---- health ----
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """Check Allama platform health (``GET /health``)."""
         return self._request("GET", "/health").json()
 
@@ -273,8 +273,8 @@ class AllamaClient:
         title: str,
         description: str = "",
         severity: str = "medium",
-        tags: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Create a new SOAR case (``POST /api/cases``)."""
         body = {
             "title": title,
@@ -285,7 +285,7 @@ class AllamaClient:
         }
         return self._request("POST", "/api/cases", json=body).json()
 
-    def create_case_from_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
+    def create_case_from_event(self, event: dict[str, Any]) -> dict[str, Any]:
         """Convenience: create a case pre-populated from a Shield event."""
         verdict = event.get("verdict", "UNKNOWN")
         source_ip = event.get("source_ip", "n/a")
@@ -315,13 +315,13 @@ class AllamaClient:
             tags=["sentinel", event_type],
         )
 
-    def update_case(self, case_id: str, **fields) -> Dict[str, Any]:
+    def update_case(self, case_id: str, **fields) -> dict[str, Any]:
         """Update an existing case (``PATCH /api/cases/{case_id}``)."""
         from urllib.parse import quote
         safe_id = quote(case_id, safe='')
         return self._request("PATCH", f"/api/cases/{safe_id}", json=fields).json()
 
-    def add_comment(self, case_id: str, comment: str) -> Dict[str, Any]:
+    def add_comment(self, case_id: str, comment: str) -> dict[str, Any]:
         """Add a comment to a case (``POST /api/cases/{case_id}/comments``)."""
         from urllib.parse import quote
         safe_id = quote(case_id, safe='')
@@ -335,8 +335,8 @@ class AllamaClient:
     def trigger_workflow(
         self,
         workflow_id: str,
-        payload: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Trigger a named workflow (``POST /api/workflows/{workflow_id}/trigger``)."""
         return self._request(
             "POST", f"/api/workflows/{workflow_id}/trigger",

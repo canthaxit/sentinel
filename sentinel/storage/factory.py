@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from .base import StorageBackend
 from .memory import MemoryBackend
@@ -13,8 +12,8 @@ from .sqlite import SQLiteBackend
 
 
 def create_backend(
-    backend_type: Optional[str] = None,
-    db_path: Optional[str] = None,
+    backend_type: str | None = None,
+    db_path: str | None = None,
 ) -> StorageBackend:
     """Create a storage backend from config or environment variables.
 

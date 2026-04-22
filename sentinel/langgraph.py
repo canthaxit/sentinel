@@ -26,7 +26,8 @@ Requires ``langgraph>=0.2.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class ShieldBlockedError(Exception):
         self.result = result
 
 
-def _extract_last_message_content(state: Dict[str, Any]) -> Optional[str]:
+def _extract_last_message_content(state: dict[str, Any]) -> str | None:
     """Extract text content from the last message in a LangGraph state dict.
 
     Supports both dict-style messages and LangChain BaseMessage objects.
@@ -84,7 +85,7 @@ def create_shield_node(
     mode: str = "block",
     session_id: str = "default",
     source_ip: str = "127.0.0.1",
-) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Create a LangGraph node function that screens the last message.
 
     The returned function accepts a LangGraph state dict and screens
@@ -100,7 +101,7 @@ def create_shield_node(
         A callable suitable for ``graph.add_node()``.
     """
 
-    def guard_node(state: Dict[str, Any]) -> Dict[str, Any]:
+    def guard_node(state: dict[str, Any]) -> dict[str, Any]:
         text = _extract_last_message_content(state)
         if text:
             _screen(shield, text, mode, session_id, source_ip)
@@ -113,11 +114,11 @@ def create_shield_node(
 
 def shield_wrap_node(
     shield: Any,
-    node_fn: Callable[[Dict[str, Any]], Dict[str, Any]],
+    node_fn: Callable[[dict[str, Any]], dict[str, Any]],
     mode: str = "block",
     session_id: str = "default",
     source_ip: str = "127.0.0.1",
-) -> Callable[[Dict[str, Any]], Dict[str, Any]]:
+) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Wrap an existing LangGraph node so its input is screened first.
 
     The wrapper screens ``state["messages"][-1].content`` through Shield
@@ -134,7 +135,7 @@ def shield_wrap_node(
         A wrapped callable suitable for ``graph.add_node()``.
     """
 
-    def wrapped_node(state: Dict[str, Any]) -> Dict[str, Any]:
+    def wrapped_node(state: dict[str, Any]) -> dict[str, Any]:
         text = _extract_last_message_content(state)
         if text:
             _screen(shield, text, mode, session_id, source_ip)

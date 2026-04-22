@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .base import StorageBackend
 
@@ -20,24 +20,24 @@ class MemoryBackend(StorageBackend):
     """
 
     def __init__(self):
-        self._sessions: Dict[str, Dict[str, Any]] = {}
-        self._detections: List[Dict[str, Any]] = []
-        self._iocs: Dict[str, Dict[str, Any]] = {}  # payload_hash -> ioc
-        self._redteam_sessions: Dict[str, Dict[str, Any]] = {}
-        self._redteam_results: List[Dict[str, Any]] = []
-        self._scheduler_jobs: Dict[str, Dict[str, Any]] = {}
-        self._scheduler_runs: List[Dict[str, Any]] = []
-        self._threat_iocs: Dict[str, Dict[str, Any]] = {}  # payload_hash -> ioc
-        self._mcp_events: List[Dict[str, Any]] = []
+        self._sessions: dict[str, dict[str, Any]] = {}
+        self._detections: list[dict[str, Any]] = []
+        self._iocs: dict[str, dict[str, Any]] = {}  # payload_hash -> ioc
+        self._redteam_sessions: dict[str, dict[str, Any]] = {}
+        self._redteam_results: list[dict[str, Any]] = []
+        self._scheduler_jobs: dict[str, dict[str, Any]] = {}
+        self._scheduler_runs: list[dict[str, Any]] = []
+        self._threat_iocs: dict[str, dict[str, Any]] = {}  # payload_hash -> ioc
+        self._mcp_events: list[dict[str, Any]] = []
         self._lock = threading.RLock()
 
     # -- Shield Sessions --
 
-    def save_session(self, session_id: str, data: Dict[str, Any]) -> None:
+    def save_session(self, session_id: str, data: dict[str, Any]) -> None:
         with self._lock:
             self._sessions[session_id] = dict(data)
 
-    def load_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def load_session(self, session_id: str) -> dict[str, Any] | None:
         with self._lock:
             s = self._sessions.get(session_id)
             return dict(s) if s else None
@@ -46,22 +46,22 @@ class MemoryBackend(StorageBackend):
         with self._lock:
             return self._sessions.pop(session_id, None) is not None
 
-    def list_sessions(self) -> Dict[str, Dict[str, Any]]:
+    def list_sessions(self) -> dict[str, dict[str, Any]]:
         with self._lock:
             return {sid: dict(s) for sid, s in self._sessions.items()}
 
     # -- Shield Detections --
 
-    def log_detection(self, event: Dict[str, Any]) -> None:
+    def log_detection(self, event: dict[str, Any]) -> None:
         with self._lock:
             self._detections.append(dict(event))
 
     def query_detections(
         self,
-        verdict: Optional[str] = None,
-        session_id: Optional[str] = None,
+        verdict: str | None = None,
+        session_id: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._lock:
             results = list(reversed(self._detections))
             if verdict:
@@ -72,7 +72,7 @@ class MemoryBackend(StorageBackend):
 
     # -- Shield IOCs --
 
-    def save_ioc(self, ioc: Dict[str, Any]) -> None:
+    def save_ioc(self, ioc: dict[str, Any]) -> None:
         with self._lock:
             ph = ioc.get("payload_hash", "")
             if ph in self._iocs:
@@ -82,7 +82,7 @@ class MemoryBackend(StorageBackend):
             else:
                 self._iocs[ph] = dict(ioc)
 
-    def query_iocs(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def query_iocs(self, limit: int = 100) -> list[dict[str, Any]]:
         with self._lock:
             items = sorted(
                 self._iocs.values(),
@@ -93,7 +93,7 @@ class MemoryBackend(StorageBackend):
 
     # -- Red Team --
 
-    def save_redteam_result(self, result: Dict[str, Any], session_id: str) -> None:
+    def save_redteam_result(self, result: dict[str, Any], session_id: str) -> None:
         with self._lock:
             now = datetime.now().isoformat()
             if session_id not in self._redteam_sessions:
@@ -112,7 +112,7 @@ class MemoryBackend(StorageBackend):
                 1 for rr in self._redteam_results if rr.get("session_id") == session_id
             )
 
-    def get_redteam_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def get_redteam_session(self, session_id: str) -> dict[str, Any] | None:
         with self._lock:
             sess = self._redteam_sessions.get(session_id)
             if not sess:
@@ -123,7 +123,7 @@ class MemoryBackend(StorageBackend):
             ]
             return {**sess, "results": results}
 
-    def list_redteam_sessions(self) -> List[Dict[str, Any]]:
+    def list_redteam_sessions(self) -> list[dict[str, Any]]:
         with self._lock:
             items = sorted(
                 self._redteam_sessions.values(),
@@ -134,11 +134,11 @@ class MemoryBackend(StorageBackend):
 
     def query_redteam_results(
         self,
-        session_id: Optional[str] = None,
-        category: Optional[str] = None,
-        result_type: Optional[str] = None,
+        session_id: str | None = None,
+        category: str | None = None,
+        result_type: str | None = None,
         limit: int = 200,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._lock:
             results = list(self._redteam_results)
             if session_id:
@@ -149,7 +149,7 @@ class MemoryBackend(StorageBackend):
                 results = [r for r in results if r.get("result") == result_type]
             return results[:limit]
 
-    def get_redteam_statistics(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    def get_redteam_statistics(self, session_id: str | None = None) -> dict[str, Any]:
         with self._lock:
             if session_id:
                 sess = self.get_redteam_session(session_id)
@@ -195,16 +195,16 @@ class MemoryBackend(StorageBackend):
 
     # -- Scheduler --
 
-    def save_job(self, job: Dict[str, Any]) -> None:
+    def save_job(self, job: dict[str, Any]) -> None:
         with self._lock:
             self._scheduler_jobs[job["job_id"]] = dict(job)
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
         with self._lock:
             j = self._scheduler_jobs.get(job_id)
             return dict(j) if j else None
 
-    def list_jobs(self) -> List[Dict[str, Any]]:
+    def list_jobs(self) -> list[dict[str, Any]]:
         with self._lock:
             return [dict(j) for j in self._scheduler_jobs.values()]
 
@@ -212,11 +212,11 @@ class MemoryBackend(StorageBackend):
         with self._lock:
             return self._scheduler_jobs.pop(job_id, None) is not None
 
-    def save_run(self, run: Dict[str, Any]) -> None:
+    def save_run(self, run: dict[str, Any]) -> None:
         with self._lock:
             self._scheduler_runs.append(dict(run))
 
-    def get_run_history(self, limit: int = 50, job_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_run_history(self, limit: int = 50, job_id: str | None = None) -> list[dict[str, Any]]:
         with self._lock:
             runs = list(reversed(self._scheduler_runs))
             if job_id:
@@ -225,7 +225,7 @@ class MemoryBackend(StorageBackend):
 
     # -- Threat Intel IOCs --
 
-    def save_threat_ioc(self, ioc: Dict[str, Any]) -> None:
+    def save_threat_ioc(self, ioc: dict[str, Any]) -> None:
         with self._lock:
             ph = ioc.get("payload_hash", "")
             if ph in self._threat_iocs:
@@ -242,12 +242,12 @@ class MemoryBackend(StorageBackend):
 
     def query_threat_iocs(
         self,
-        ioc_type: Optional[str] = None,
-        severity: Optional[str] = None,
-        threat_type: Optional[str] = None,
-        source: Optional[str] = None,
+        ioc_type: str | None = None,
+        severity: str | None = None,
+        threat_type: str | None = None,
+        source: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._lock:
             results = list(self._threat_iocs.values())
             if ioc_type:
@@ -261,15 +261,15 @@ class MemoryBackend(StorageBackend):
             results.sort(key=lambda x: x.get("last_seen", ""), reverse=True)
             return results[:limit]
 
-    def get_threat_ioc_by_hash(self, payload_hash: str) -> Optional[Dict[str, Any]]:
+    def get_threat_ioc_by_hash(self, payload_hash: str) -> dict[str, Any] | None:
         with self._lock:
             ioc = self._threat_iocs.get(payload_hash)
             return dict(ioc) if ioc else None
 
-    def get_threat_statistics(self) -> Dict[str, Any]:
+    def get_threat_statistics(self) -> dict[str, Any]:
         with self._lock:
             all_iocs = list(self._threat_iocs.values())
-            stats: Dict[str, Any] = {
+            stats: dict[str, Any] = {
                 "total_iocs": len(all_iocs),
                 "by_type": {},
                 "by_severity": {},
@@ -288,16 +288,16 @@ class MemoryBackend(StorageBackend):
 
     # -- MCP Events --
 
-    def log_mcp_event(self, event: Dict[str, Any]) -> None:
+    def log_mcp_event(self, event: dict[str, Any]) -> None:
         with self._lock:
             self._mcp_events.append(dict(event))
 
     def query_mcp_events(
         self,
-        tool_name: Optional[str] = None,
-        allowed: Optional[bool] = None,
+        tool_name: str | None = None,
+        allowed: bool | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         with self._lock:
             results = list(reversed(self._mcp_events))
             if tool_name:

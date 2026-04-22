@@ -35,7 +35,7 @@ Requires ``dspy-ai>=2.5.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -158,7 +158,7 @@ class ShieldModule:
         self.mode = mode
         self.session_id = session_id
         self.source_ip = source_ip
-        self.last_result: Optional[Any] = None
+        self.last_result: Any | None = None
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Screen input then forward to the inner module."""

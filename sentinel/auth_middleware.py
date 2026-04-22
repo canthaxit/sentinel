@@ -8,7 +8,7 @@ from __future__ import annotations
 import base64
 import functools
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .rbac import Permission, RBACManager
@@ -18,9 +18,9 @@ log = logging.getLogger(__name__)
 
 
 def require_auth(
-    tenant_manager: Optional[TenantManager] = None,
-    rbac_manager: Optional[RBACManager] = None,
-    permission: Optional[Permission] = None,
+    tenant_manager: TenantManager | None = None,
+    rbac_manager: RBACManager | None = None,
+    permission: Permission | None = None,
 ):
     """Flask decorator that enforces authentication and authorization.
 
