@@ -18,8 +18,8 @@ Usage:
 
 import base64
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Any, List
 
 from . import config
 

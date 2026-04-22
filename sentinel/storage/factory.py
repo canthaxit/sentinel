@@ -9,7 +9,6 @@ from .base import StorageBackend
 from .memory import MemoryBackend
 from .sqlite import SQLiteBackend
 
-
 # ---- Factory ----
 
 

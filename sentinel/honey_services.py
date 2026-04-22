@@ -21,12 +21,9 @@ Usage:
 import datetime
 import logging
 import socketserver
-import struct
 import threading
-import time
 from collections import deque
 from dataclasses import dataclass, field
-from http.client import responses as http_status_phrases
 from typing import Any, Callable, Dict, List, Optional
 
 log = logging.getLogger("sentinel.honey_services")

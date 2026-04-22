@@ -19,7 +19,7 @@ Usage:
 """
 
 import dataclasses
-from typing import FrozenSet, Optional, Set, Tuple
+from typing import FrozenSet, Optional, Tuple
 
 
 class PolicyViolation(Exception):

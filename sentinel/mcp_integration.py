@@ -21,7 +21,7 @@ Usage (with MCP SDK):
 
 import logging
 import threading
-from typing import Any, Dict, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -43,8 +43,8 @@ def _get_default_guard():
             return _default_guard
 
         from .mcp_guard import MCPGuard
-        from .session import SessionManager
         from .rate_limiter import RateLimiter
+        from .session import SessionManager
 
         _default_guard = MCPGuard(
             session_manager=SessionManager(),

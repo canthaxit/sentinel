@@ -33,7 +33,6 @@ import json
 import logging
 import sys
 import threading
-from typing import Optional
 
 # ---- logging to stderr (stdout is reserved for MCP JSON-RPC) ----
 logging.basicConfig(

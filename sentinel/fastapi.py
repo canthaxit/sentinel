@@ -25,8 +25,7 @@ import hmac
 import json
 import logging
 import os
-import time
-from typing import Any, Callable, Dict, Optional, Set
+from typing import Any, Callable, Optional, Set
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse

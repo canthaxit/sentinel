@@ -5,8 +5,8 @@ Thread-safe session state tracking with multi-turn attack detection.
 
 import datetime
 import logging
-import time
 import threading
+import time
 
 from . import config
 from .pattern_detector import detect_attack_patterns

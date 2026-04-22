@@ -27,10 +27,10 @@ Usage:
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from . import config
-from .frameworks import build_threat_mapping, DETECTION_TO_OWASP_AGENTIC
+from .frameworks import DETECTION_TO_OWASP_AGENTIC, build_threat_mapping
 
 log = logging.getLogger(__name__)
 
@@ -179,7 +179,6 @@ class MCPGuard:
         message_path.append("honey_check")
         if self.honey_tools is not None and self.honey_tools.is_honey_tool(tool_name):
             honey_response = self.honey_tools.get_response(tool_name, arguments or {})
-            tool_def = self.honey_tools.get_tool(tool_name)
 
             # Build threat mapping for honey trigger
             threat_mapping = self._build_mcp_threat_mapping("mcp_honey_triggered")

@@ -8,8 +8,7 @@ import threading
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from .base import StorageBackend, _serialize_session, _make_serializable, _CURRENT_SCHEMA_VERSION
-
+from .base import _CURRENT_SCHEMA_VERSION, StorageBackend, _serialize_session
 
 # ---- SQLite Backend ----
 

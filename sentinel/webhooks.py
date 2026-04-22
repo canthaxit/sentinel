@@ -19,9 +19,7 @@ Usage::
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional

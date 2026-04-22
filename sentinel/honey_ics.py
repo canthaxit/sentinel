@@ -29,7 +29,7 @@ import socketserver
 import struct
 import threading
 from collections import deque
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 log = logging.getLogger("sentinel.honey_ics")
 

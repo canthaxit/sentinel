@@ -4,7 +4,6 @@ import os
 
 from sentinel.llm_judge import LLMJudge
 
-
 # ============================================================================
 # Provider: llama-cpp-python (direct in-process GGUF inference)
 # ============================================================================

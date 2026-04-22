@@ -20,7 +20,7 @@ Requires ``langchain-core>=0.1.0`` (install with
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Union
 
 log = logging.getLogger(__name__)
 

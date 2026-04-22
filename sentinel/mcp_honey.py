@@ -21,11 +21,9 @@ Usage:
 """
 
 import datetime
-import hashlib
 import secrets
 import string
 import threading
-import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -63,7 +61,9 @@ def _rand_id(prefix: str = "", length: int = 12) -> str:
 
 def _fake_db_response(arguments: Dict[str, Any]) -> dict:
     """Generate a fake database query response."""
-    query = arguments.get("query", "SELECT 1")
+    # `query` is read for future log correlation but not yet used in the
+    # response payload.
+    _ = arguments.get("query", "SELECT 1")
     return {
         "status": "success",
         "rows_affected": 0,

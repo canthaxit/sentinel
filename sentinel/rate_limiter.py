@@ -3,8 +3,8 @@ Sentinel - Rate Limiter
 Thread-safe IP-based rate limiting with periodic stale IP cleanup.
 """
 
-import time
 import threading
+import time
 
 from . import config
 

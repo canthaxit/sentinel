@@ -17,14 +17,12 @@ Usage:
     # Writes CEF line to configured output (file, syslog, or stdout)
 """
 
-import os
-import time
 import datetime
-import threading
-import socket
 import logging
 import logging.handlers
-
+import os
+import socket
+import threading
 
 # CEF severity mapping from our verdict/threat types
 _VERDICT_SEVERITY = {

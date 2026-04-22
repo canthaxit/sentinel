@@ -3,16 +3,16 @@
 import logging
 import os
 
-from .ollama import OllamaJudge, OllamaStructuredJudge
-from .openai_provider import OpenAIJudge
-from .openai_compat import OpenAICompatibleJudge
 from .anthropic_provider import AnthropicJudge
 from .azure import AzureOpenAIJudge
 from .bedrock import BedrockJudge
-from .google import VertexAIJudge, GeminiJudge
-from .llamacpp import LlamaCppJudge
-from .transformer import TransformerClassifierJudge
 from .fallback import FallbackJudge
+from .google import GeminiJudge, VertexAIJudge
+from .llamacpp import LlamaCppJudge
+from .ollama import OllamaJudge, OllamaStructuredJudge
+from .openai_compat import OpenAICompatibleJudge
+from .openai_provider import OpenAIJudge
+from .transformer import TransformerClassifierJudge
 
 log = logging.getLogger(__name__)
 

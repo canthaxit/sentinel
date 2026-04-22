@@ -32,18 +32,18 @@ Usage:
         system="You are a helpful assistant.",
     )
 """
-from .ollama import OllamaJudge, OllamaStructuredJudge
-from .openai_provider import OpenAIJudge
-from .openai_compat import OpenAICompatibleJudge
 from .anthropic_provider import AnthropicJudge
 from .azure import AzureOpenAIJudge
 from .bedrock import BedrockJudge
-from .google import VertexAIJudge, GeminiJudge
-from .llamacpp import LlamaCppJudge
-from .transformer import TransformerClassifierJudge
-from .fallback import FallbackJudge
-from .factory import create_llm_judge, _PROVIDERS
 from .chat import chat_completion
+from .factory import _PROVIDERS, create_llm_judge
+from .fallback import FallbackJudge
+from .google import GeminiJudge, VertexAIJudge
+from .llamacpp import LlamaCppJudge
+from .ollama import OllamaJudge, OllamaStructuredJudge
+from .openai_compat import OpenAICompatibleJudge
+from .openai_provider import OpenAIJudge
+from .transformer import TransformerClassifierJudge
 
 __all__ = [
     "OllamaJudge", "OllamaStructuredJudge",
@@ -52,5 +52,6 @@ __all__ = [
     "BedrockJudge", "VertexAIJudge", "GeminiJudge",
     "LlamaCppJudge", "TransformerClassifierJudge",
     "FallbackJudge",
-    "create_llm_judge", "chat_completion",
+    "create_llm_judge", "_PROVIDERS",
+    "chat_completion",
 ]

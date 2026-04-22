@@ -12,7 +12,6 @@ Use scan_all() to run multiple scanners in one call.
 import dataclasses
 import math
 import re
-import unicodedata
 from typing import List, Optional, Set
 
 from . import config
@@ -595,7 +594,7 @@ def scan_ai_generated(text: str, threshold: float = 0.65) -> List[ScanFinding]:
     lengths = [len(s.split()) for s in sentences]
     mean_len = sum(lengths) / len(lengths)
     if mean_len > 0:
-        variance = sum((l - mean_len) ** 2 for l in lengths) / len(lengths)
+        variance = sum((length - mean_len) ** 2 for length in lengths) / len(lengths)
         cv = (variance ** 0.5) / mean_len  # coefficient of variation
         # Low CV = very uniform = likely AI; humans have CV > 0.5 typically
         if cv < 0.25:

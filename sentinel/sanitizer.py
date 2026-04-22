@@ -8,9 +8,9 @@ Targets:
 - CSV formula injection (ATK-033)
 """
 
+import html
 import logging
 import re
-import html
 import unicodedata
 
 log = logging.getLogger(__name__)

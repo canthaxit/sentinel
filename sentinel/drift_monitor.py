@@ -10,11 +10,11 @@ Three detection layers:
   3. Concept drift - PSI (Population Stability Index) on score bins
 """
 
-import threading
 import json
 import logging
 import os
 import pathlib
+import threading
 from collections import deque
 from datetime import datetime, timezone
 

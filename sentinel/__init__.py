@@ -21,18 +21,18 @@ import threading
 
 __version__ = "1.0.0"
 
-from .sanitizer import sanitize_input
+from . import frameworks
+from .drift_monitor import DriftMonitor
+from .ensemble import EnsembleEngine
+from .frameworks import build_threat_mapping, compass_export
+from .llm_judge import LLMJudge
+from .llm_providers import chat_completion, create_llm_judge
+from .ml_client import MLClient
 from .pattern_detector import detect_attack_patterns
 from .pre_filter import pre_filter_check
-from .llm_judge import LLMJudge
-from .llm_providers import create_llm_judge, chat_completion
-from .ml_client import MLClient
-from .ensemble import EnsembleEngine
-from .session import SessionManager
 from .rate_limiter import RateLimiter
-from .drift_monitor import DriftMonitor
-from . import frameworks
-from .frameworks import build_threat_mapping, compass_export
+from .sanitizer import sanitize_input
+from .session import SessionManager
 
 __all__ = [
     "__version__",
@@ -599,10 +599,11 @@ def create_shield_blueprint(shield=None, allow_unauthenticated=False):
         RuntimeError: If ``SENTINEL_API_KEY`` is unset and
             ``allow_unauthenticated`` is False.
     """
+    import functools
     import hmac
     import os
-    import functools
-    from flask import Blueprint, request, jsonify
+
+    from flask import Blueprint, jsonify, request
 
     api_key_configured = bool(os.getenv("SENTINEL_API_KEY", ""))
     if not api_key_configured and not allow_unauthenticated:
@@ -751,6 +752,7 @@ def create_shield_blueprint(shield=None, allow_unauthenticated=False):
     @_require_api_key
     def shield_dashboard():
         from flask import render_template_string
+
         from . import config as shield_config
 
         nav = ""

@@ -5,9 +5,9 @@ Orchestrates the tiered detection pipeline:
 """
 
 from . import config
-from .pre_filter import pre_filter_check
 from .llm_judge import LLMJudge
 from .ml_client import MLClient
+from .pre_filter import pre_filter_check
 
 
 class EnsembleEngine:
