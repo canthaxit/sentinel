@@ -21,8 +21,10 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install ruff
         run: pip install ruff
-      - name: Ruff lint
+      - name: Ruff check
         run: ruff check sentinel/
+      - name: Ruff format check
+        run: ruff format --check sentinel/
 
   test:
     runs-on: ubuntu-latest
