@@ -122,7 +122,11 @@ class _HoneyHTTPHandler(socketserver.BaseRequestHandler):
                         "source_port": source_port,
                         "method": method,
                         "path": path,
-                        "raw_request": request_text[:1024],
+                        # MED F-08 fix (2026-04-22 audit): 50k triggers * 1 KB
+                        # was ~75 MB of attacker-controlled memory per
+                        # registry. 256 B is enough for recon reconstruction;
+                        # real forensic capture should spool to disk.
+                        "raw_request": request_text[:256],
                         "timestamp": datetime.datetime.now().isoformat(),
                     }
                 )
