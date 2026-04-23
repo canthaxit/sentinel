@@ -5,6 +5,7 @@ Achieves ~10ms blocking vs ~15s LLM judgment (1,550x speedup).
 """
 
 import logging
+import unicodedata
 
 from . import config
 
@@ -38,7 +39,14 @@ def pre_filter_check(user_input: str, session: dict, sanitizations: list | None 
         log.info("Pre-filter blocked: Instruction override detected")
         return True, "INSTRUCTION_OVERRIDE"
 
-    text_lower = user_input.lower()
+    # HIGH F-03 fix (2026-04-22 audit): substring matching alone was bypassed
+    # by homoglyph obfuscation (e.g. Cyrillic \u0430 for Latin 'a') and by
+    # combining / non-ASCII characters. NFKD folds compatibility forms
+    # (superscripts, full-width, decorated letters) so the subsequent
+    # substring sweep catches those evasions. This is a defence-in-depth
+    # measure -- paraphrase / non-English evasions still require the ML and
+    # LLM judge layers downstream.
+    text_lower = unicodedata.normalize("NFKD", user_input).lower()
 
     # Rule 4: Critical keyword combinations
     for combo in config.CRITICAL_COMBINATIONS:

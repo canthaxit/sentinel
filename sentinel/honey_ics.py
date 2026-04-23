@@ -385,8 +385,10 @@ class HoneyModbusServer:
         port: int = 502,
         trigger_callback: Callable | None = None,
         max_log_entries: int = _MAX_LOG,
+        bind_host: str = "",
     ):
         self.port = port
+        self.bind_host = bind_host
         self.trigger_callback = trigger_callback
         self._registers = _build_default_registers()
         self._register_lock = threading.RLock()
@@ -411,8 +413,15 @@ class HoneyModbusServer:
         class Handler(_ModbusHandler):
             _handler_ctx = ctx
 
+        # HIGH F-02 fix (2026-04-22 audit): loopback by default so an ICS
+        # deception cannot silently advertise itself to the public internet
+        # from a multi-homed host. Operators opt in via SENTINEL_HONEY_BIND
+        # or the bind_host constructor argument.
+        import os
+
+        bind_host = self.bind_host or os.getenv("SENTINEL_HONEY_BIND", "127.0.0.1")
         socketserver.TCPServer.allow_reuse_address = True
-        self._server = socketserver.TCPServer(("0.0.0.0", self.port), Handler)
+        self._server = socketserver.TCPServer((bind_host, self.port), Handler)
         self._thread = threading.Thread(
             target=self._server.serve_forever,
             name=f"honey-modbus-{self.port}",

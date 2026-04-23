@@ -45,6 +45,12 @@ class HoneyServiceConfig:
         protocol: Protocol identifier ("http", "smtp", "ldap", etc.).
         banner: Initial banner/greeting string sent on connection.
         responses: Mapping of request patterns to canned response bodies.
+        bind_host: Interface to bind to. Defaults to loopback so an
+            accidental deployment does not expose the honey on all
+            interfaces; operators who want external reachability (typical
+            deception deployment) must opt in explicitly via
+            ``SENTINEL_HONEY_BIND`` env var or by setting ``bind_host``
+            directly on the config.
     """
 
     name: str
@@ -52,6 +58,7 @@ class HoneyServiceConfig:
     protocol: str = "http"
     banner: str = ""
     responses: dict[str, str] = field(default_factory=dict)
+    bind_host: str = ""  # Resolved at start; empty means "use env default".
 
 
 # ---------------------------------------------------------------------------
@@ -194,8 +201,18 @@ class HoneyHTTPService:
         class Handler(_HoneyHTTPHandler):
             _handler_ctx = ctx
 
+        # HIGH F-02 fix (2026-04-22 audit): default bind is loopback. Prior
+        # unconditional 0.0.0.0 bind exposed every honey to any interface on
+        # multi-homed hosts -- a typical SRE deployment on a jump-box with a
+        # public interface would have broadcast the ICS deception to the
+        # internet. Operators who want external reachability set
+        # ``SENTINEL_HONEY_BIND`` (e.g. the decoy VLAN interface IP) or pass
+        # ``bind_host`` on the HoneyServiceConfig.
+        import os
+
+        bind_host = self.config.bind_host or os.getenv("SENTINEL_HONEY_BIND", "127.0.0.1")
         socketserver.TCPServer.allow_reuse_address = True
-        self._server = socketserver.TCPServer(("0.0.0.0", self.config.port), Handler)
+        self._server = socketserver.TCPServer((bind_host, self.config.port), Handler)
         self._thread = threading.Thread(
             target=self._server.serve_forever,
             name=f"honey-http-{self.config.name}",

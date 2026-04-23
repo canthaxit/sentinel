@@ -294,6 +294,9 @@ class ShieldResult:
         self.sanitizations = sanitizations or []
         self.session = session or {}
         self.detection_method = detection_method or "unknown"
+        # ``SAFE_FAIL_OPEN`` stays non-blocking (fail-open's purpose) but it
+        # is NOT the same as a clean SAFE. Callers filtering by verdict
+        # string now see it distinctly.
         self.blocked = verdict in ("MALICIOUS", "SAFE_REVIEW")
         self.threat_mapping = threat_mapping or {
             "owasp_llm": [],
@@ -463,8 +466,16 @@ class Shield:
                     "Ensemble failed (fail-open, allowing request): %s", exc
                 )
                 message_path.append("fail_open")
+                # HIGH F-04 fix (2026-04-22 audit): previous code returned
+                # verdict="SAFE" with only a ``failed_open=True`` flag. Any
+                # downstream caller who did ``if result.verdict == "SAFE":``
+                # silently treated a failed-open pass as a genuine SAFE
+                # verdict. Use a dedicated verdict string so simple value
+                # checks distinguish "SAFE after analysis" from "SAFE
+                # because analysis failed". ``blocked`` stays False (that is
+                # fail-open's whole purpose) but the verdict signals it.
                 result = ShieldResult(
-                    verdict="SAFE",
+                    verdict="SAFE_FAIL_OPEN",
                     detection_method="fail_open",
                     sanitizations=sanitizations,
                     session=session,
