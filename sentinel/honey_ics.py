@@ -318,9 +318,18 @@ class _ModbusHandler(socketserver.BaseRequestHandler):
             register_value,
         )
 
-        # Accept the write (deception: appear to comply)
-        with self._reg_lock:
-            self._registers[register_addr] = register_value & 0xFFFF
+        # MED F-06 fix (2026-04-22 audit): the previous code updated the
+        # internal register bank, so a subsequent read returned the written
+        # value exactly. That turned the honey into a fingerprinting oracle
+        # -- an attacker writes 0xDEAD, reads it back, confirms a simulator.
+        # Now: echo the write per MODBUS spec (so legitimate-looking clients
+        # still get an ACK) but DO NOT mutate the register bank for writes
+        # coming from the network. The real-ICS-behaviour-by-default avoids
+        # the calibration oracle while preserving the deception.
+        #
+        # The write is still logged and fires the trigger callback above,
+        # which is what a defender cares about -- the attack indicator is
+        # the write *attempt*, not its persistence.
 
         # Echo back (standard MODBUS write response)
         return struct.pack(">BHH", FC_WRITE_SINGLE_REGISTER, register_addr, register_value & 0xFFFF)

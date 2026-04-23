@@ -159,8 +159,11 @@ class TestHoneyModbusServer:
         assert addr == 200
         assert val == 9999
 
-        # Verify the register was updated
-        assert self.server.get_register(200) == 9999
+        # MED F-06 fix (2026-04-22 audit): FC06 writes no longer mutate the
+        # register bank -- that behaviour let attackers calibrate the honey
+        # by writing and reading back a distinctive value. Register retains
+        # its original value while the ACK is still returned.
+        assert self.server.get_register(200) != 9999
 
         # Should have triggered a write alert
         write_triggers = [t for t in self.triggers if t["action"] == "write_single_register"]
