@@ -1,13 +1,25 @@
 #!/usr/bin/env python3
 """
-Integration tests for Sentinel + Anomaly Detection System
+Integration tests for Sentinel + Anomaly Detection System.
+
+Requires live servers on :5000 and :8000. Skipped by default; opt in
+with ``SENTINEL_RUN_INTEGRATION_TESTS=true``.
 """
 
 import json
+import os
 import time
 import requests
 import pytest
 from datetime import datetime
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("SENTINEL_RUN_INTEGRATION_TESTS", "").lower() != "true",
+    reason=(
+        "Integration tests require live servers on :5000 and :8000. "
+        "Set SENTINEL_RUN_INTEGRATION_TESTS=true to run."
+    ),
+)
 
 
 # Configuration

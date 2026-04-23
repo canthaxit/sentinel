@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 """
-Test script for multi-turn attack detection
-Tests if the enhanced session tracking is working
+Test script for multi-turn attack detection.
+
+Requires a live Sentinel server on :5000. Skipped by default; opt in
+with ``SENTINEL_RUN_INTEGRATION_TESTS=true``.
 """
 
+import os
 import requests
 import json
 import time
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("SENTINEL_RUN_INTEGRATION_TESTS", "").lower() != "true",
+    reason="Requires a live Sentinel server on :5000.",
+)
 
 API_URL = "http://localhost:5000/api/chat"
 SESSIONS_URL = "http://localhost:5000/api/sessions"

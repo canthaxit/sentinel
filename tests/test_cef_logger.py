@@ -14,6 +14,13 @@ from sentinel.cef_logger import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _cef_base_dir_to_tmp(monkeypatch, tmp_path):
+    """Point ``CEF_BASE_DIR`` at ``tmp_path`` so file-backed tests can
+    write inside the OS temp root without tripping the scope check."""
+    monkeypatch.setenv("CEF_BASE_DIR", str(tmp_path))
+
+
 class TestCEFEscaping:
     def test_escape_backslash(self):
         assert _cef_escape("a\\b") == "a\\\\b"

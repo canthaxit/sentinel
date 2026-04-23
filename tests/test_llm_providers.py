@@ -368,7 +368,7 @@ class TestFallbackJudge:
         judge = FallbackJudge()
         assert judge._chain is None
 
-    @patch("sentinel.llm_providers.create_llm_judge")
+    @patch("sentinel.llm_providers.factory.create_llm_judge")
     def test_first_provider_succeeds(self, mock_factory):
         mock_judge_a = MagicMock()
         mock_judge_a.get_verdict.return_value = "SAFE"
@@ -381,7 +381,7 @@ class TestFallbackJudge:
         mock_judge_a.get_verdict.assert_called_once_with("hello")
         mock_judge_b.get_verdict.assert_not_called()
 
-    @patch("sentinel.llm_providers.create_llm_judge")
+    @patch("sentinel.llm_providers.factory.create_llm_judge")
     def test_first_fails_second_succeeds(self, mock_factory):
         mock_judge_a = MagicMock()
         mock_judge_a.get_verdict.side_effect = ConnectionError("offline")
@@ -395,7 +395,7 @@ class TestFallbackJudge:
         mock_judge_a.get_verdict.assert_called_once()
         mock_judge_b.get_verdict.assert_called_once()
 
-    @patch("sentinel.llm_providers.create_llm_judge")
+    @patch("sentinel.llm_providers.factory.create_llm_judge")
     def test_all_fail_defaults_unsafe(self, mock_factory):
         mock_judge = MagicMock()
         mock_judge.get_verdict.side_effect = RuntimeError("broken")
@@ -405,13 +405,13 @@ class TestFallbackJudge:
         verdict = judge.get_verdict("test")
         assert verdict == "UNSAFE"
 
-    @patch("sentinel.llm_providers.create_llm_judge")
+    @patch("sentinel.llm_providers.factory.create_llm_judge")
     def test_empty_chain_defaults_unsafe(self, mock_factory):
         judge = FallbackJudge(providers=[])
         verdict = judge.get_verdict("test")
         assert verdict == "UNSAFE"
 
-    @patch("sentinel.llm_providers.create_llm_judge")
+    @patch("sentinel.llm_providers.factory.create_llm_judge")
     def test_provider_init_failure_skipped(self, mock_factory):
         """If a provider fails to initialize, it's skipped but others work."""
         mock_judge_b = MagicMock()
@@ -430,7 +430,7 @@ class TestFallbackJudge:
         with pytest.raises(NotImplementedError):
             judge._call_llm("test")
 
-    @patch("sentinel.llm_providers.create_llm_judge")
+    @patch("sentinel.llm_providers.factory.create_llm_judge")
     def test_chain_initialized_once(self, mock_factory):
         """Chain is lazily initialized once, not on every call."""
         mock_judge = MagicMock()

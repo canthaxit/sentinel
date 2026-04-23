@@ -175,8 +175,12 @@ class TestShieldFailOpen:
     def test_fail_open_on_ensemble_crash(self):
         shield = self._make_shield(fail_open=True, ensemble_error=True)
         result = shield.analyze("hello")
-        assert result.verdict == "SAFE"
+        # HIGH F-04 fix (2026-04-22): fail-open now surfaces a dedicated
+        # verdict so callers comparing ``result.verdict == "SAFE"`` can tell
+        # a degraded-path pass from a genuine SAFE.
+        assert result.verdict == "SAFE_FAIL_OPEN"
         assert result.failed_open is True
+        assert result.blocked is False
         assert result.detection_method == "fail_open"
         assert "fail_open" in result.message_path
 
@@ -190,7 +194,7 @@ class TestShieldFailOpen:
         result = shield.analyze("hello")
         d = result.to_dict()
         assert d["failed_open"] is True
-        assert d["verdict"] == "SAFE"
+        assert d["verdict"] == "SAFE_FAIL_OPEN"
         assert d["blocked"] is False
 
     def test_normal_result_no_failed_open_key(self):

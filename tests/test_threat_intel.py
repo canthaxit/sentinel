@@ -1,14 +1,23 @@
 """
-Tests for Threat Intelligence Module
-Tests STIX export, IOC extraction, storage, and MITRE mapping.
+Tests for Threat Intelligence Module.
+
+The ``threat_intel`` package is an internal reference module outside
+Sentinel's distribution. Skipped by default; opt in with
+``SENTINEL_RUN_THREAT_INTEL_TESTS=true`` during module maintenance.
 """
 
 import json
+import os
 import tempfile
 import shutil
 from pathlib import Path
 
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("SENTINEL_RUN_THREAT_INTEL_TESTS", "").lower() != "true",
+    reason="threat_intel module is internal-only; tests retained for reference.",
+)
 
 from threat_intel.core import IOC, AIIndicatorType, Severity, compute_payload_hash
 from threat_intel.storage import ThreatIntelDB

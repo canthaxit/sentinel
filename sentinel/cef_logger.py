@@ -140,14 +140,21 @@ class CEFLogger:
         import pathlib
 
         raw_path = file_path or os.getenv("CEF_FILE", "sentinel_cef.log")
-        # Validate file path to prevent path traversal
-        resolved = pathlib.Path(raw_path).resolve()
-        base_dir = pathlib.Path(os.getenv("CEF_BASE_DIR", ".")).resolve()
-        try:
-            resolved.relative_to(base_dir)
-        except ValueError:
-            raise ValueError(f"CEF file path {raw_path} resolves outside base directory {base_dir}")
-        self.file_path = str(resolved)
+        # Only enforce path scope when we actually write to disk. stdout /
+        # syslog backends never touch ``self.file_path`` so rejecting their
+        # default stub path for being outside CEF_BASE_DIR is noise.
+        if self.output == "file":
+            resolved = pathlib.Path(raw_path).resolve()
+            base_dir = pathlib.Path(os.getenv("CEF_BASE_DIR", ".")).resolve()
+            try:
+                resolved.relative_to(base_dir)
+            except ValueError:
+                raise ValueError(
+                    f"CEF file path {raw_path} resolves outside base directory {base_dir}"
+                )
+            self.file_path = str(resolved)
+        else:
+            self.file_path = raw_path
         self.syslog_host = syslog_host or os.getenv("CEF_SYSLOG_HOST", "127.0.0.1")
         self.syslog_port = int(syslog_port or os.getenv("CEF_SYSLOG_PORT", "514"))
         self.syslog_protocol = syslog_protocol or os.getenv("CEF_SYSLOG_PROTOCOL", "udp")
