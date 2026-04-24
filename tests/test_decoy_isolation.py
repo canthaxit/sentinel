@@ -26,17 +26,41 @@ import pytest
 
 os.environ.setdefault("SENTINEL_ALLOW_DEFAULT_PEPPER", "1")
 
-# The app module is a script-style Flask app at repo root; make sure it
-# imports cleanly when tests run under `python -m pytest`.
+# The app module is a script-style Flask app at repo root; make sure
+# sys.path can find it. Import is deferred into the fixture below so
+# the Flask bootstrap + global state doesn't run at collection time
+# (that previously leaked SENTINEL_API_KEY and friends into unrelated
+# tests -- test_sentinel's TestBlueprint in particular).
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-import app as sentinel_app  # noqa: E402
+
+@pytest.fixture
+def sentinel_app(monkeypatch):
+    """Import app.py inside an environment snapshot.
+
+    ``app.py`` at module scope auto-generates a SENTINEL_API_KEY and
+    writes it into ``os.environ`` when the var is unset -- a side
+    effect that leaked into ``test_sentinel.TestBlueprint.
+    test_blueprint_with_flask`` (which relies on the env var being
+    unset so ``allow_unauthenticated=True`` takes effect).
+
+    We pre-set a known value so the auto-generation path is skipped;
+    monkeypatch rolls env state back to pre-fixture at teardown, and
+    we evict ``app`` from ``sys.modules`` so a later re-import gets
+    fresh module state.
+    """
+    monkeypatch.setenv("SENTINEL_API_KEY", "test-fixture-decoy-isolation-key")
+    sys.modules.pop("app", None)
+    import app as _app
+
+    yield _app
+    sys.modules.pop("app", None)
 
 
 class TestDecoyGenerationSignature:
-    def test_signature_rejects_raw_user_input_kwarg(self):
+    def test_signature_rejects_raw_user_input_kwarg(self, sentinel_app):
         # The old signature accepted a positional user_input arg. The fix
         # dropped it -- calling with user_input= should not silently
         # accept attacker text.
@@ -51,7 +75,7 @@ class TestDecoyGenerationSignature:
         # The supported parameters are verdict and attack_patterns.
         assert {"verdict", "attack_patterns"}.issubset(param_names)
 
-    def test_generated_prompt_never_contains_attacker_text(self):
+    def test_generated_prompt_never_contains_attacker_text(self, sentinel_app):
         """Call with a malicious attack_patterns list that would poison
         the design prompt if anything were concatenated raw. Confirm the
         LLM was called with a prompt whose design text is bounded to the
@@ -92,7 +116,7 @@ class TestDecoyGenerationSignature:
 
 
 class TestDecoySyntheticUserMessages:
-    def test_synthetic_messages_exist_and_are_benign(self):
+    def test_synthetic_messages_exist_and_are_benign(self, sentinel_app):
         msgs = sentinel_app._DECOY_SYNTHETIC_USER_MESSAGES
         assert len(msgs) >= 2
         # None of the benign decoy prompts should contain the word
@@ -106,7 +130,7 @@ class TestDecoySyntheticUserMessages:
                     f"adjacent substring {bad!r}"
                 )
 
-    def test_synthetic_indexing_is_deterministic_per_session(self):
+    def test_synthetic_indexing_is_deterministic_per_session(self, sentinel_app):
         """Same session ID -> same synthetic message (so a session that
         makes multiple malicious calls sees a consistent persona reply);
         different session IDs -> distribution across the list (defeats

@@ -41,11 +41,19 @@ from sentinel.cef_logger import CEFLogger
 LOG_FILE = "sentinel_logs.json"
 BEHIND_PROXY = os.getenv("SENTINEL_BEHIND_PROXY", "").lower() in ("1", "true", "yes")
 
-# Security hardening -- generate a random key if none configured (never run open)
+# Security hardening -- generate a random key if none configured (never run open).
+# The generated key lives ONLY in the ``API_KEY`` module global; we do NOT
+# mutate ``os.environ`` as a side-effect of import. Writing env vars at
+# import time leaks process state into anything that reads SENTINEL_API_KEY
+# later (tests, subprocesses, embedded-Flask integrations) and previously
+# caused test_sentinel.TestBlueprint.test_blueprint_with_flask to fail
+# when this module was imported earlier in the pytest process -- the
+# blueprint's allow_unauthenticated=True path checks os.environ at
+# request time and was surprised by a key that showed up without any
+# caller setting it.
 API_KEY = os.getenv("SENTINEL_API_KEY", "")
 if not API_KEY:
     API_KEY = secrets.token_urlsafe(32)
-    os.environ["SENTINEL_API_KEY"] = API_KEY
     log.warning("SENTINEL_API_KEY not set -- generated ephemeral key: %s...", API_KEY[:8])
     log.warning("Set SENTINEL_API_KEY env var for a persistent key across restarts")
 _cors_env = os.getenv("CORS_ORIGINS", "")
