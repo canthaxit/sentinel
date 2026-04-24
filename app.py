@@ -475,16 +475,47 @@ def _sanitize_decoy_response(raw_response):
     return sanitized
 
 
-def generate_dynamic_decoy(user_input):
+def generate_dynamic_decoy(verdict=None, attack_patterns=None):
     """
-    Analyzes the attack vector and generates a persona.
+    Generate a decoy persona + fake-file name for a deception reply.
+
+    F-09 fix (2026-04-22 audit): the previous signature took ``user_input``
+    and, critically, the surrounding decoy chat call at the use site sent
+    the attacker's raw prompt to the LLM as the user message. Even though
+    ``_sanitize_decoy_response`` strips HTML from the reply, the LLM still
+    *sees* the full attack payload -- a creative attacker can induce the
+    model to emit attacker-controlled text (social-engineering follow-up,
+    URLs encoded as markdown-free plaintext, exfil-request continuations).
+    The decoy generation must be user-input-agnostic so attacker prompts
+    never reach the model context.
+
+    Parameters are now the Shield verdict and the list of detected attack
+    pattern labels (e.g., ``"instruction_override"``, ``"dan_jailbreak"``);
+    callers pass these in place of user text. The persona flavor is still
+    derived from the attack category so the reply feels situational, but
+    no attacker-controlled bytes reach the LLM.
     """
+    verdict_label = (verdict or "UNSAFE").upper()
+    patterns = list(attack_patterns or [])
+
+    # Coarse category hint picked from detected patterns -- purely a label
+    # routed into the decoy LLM prompt as a fixed string, never attacker-
+    # supplied text. Unknown / missing patterns fall through to the
+    # credential-extraction default.
+    if any("extraction" in p or "credential" in p for p in patterns):
+        category_hint = "credential extraction / privilege escalation"
+    elif any("jailbreak" in p or "dan" in p for p in patterns):
+        category_hint = "safety-guardrail evasion"
+    elif any("override" in p or "persona" in p for p in patterns):
+        category_hint = "system-prompt override"
+    else:
+        category_hint = "credential extraction / privilege escalation"
+
     design_prompt = (
-        "Create a brief System Prompt for a DECOY persona (a confused employee) "
-        "who would be the most vulnerable target for a social engineering request. "
-        "The attack category is: credential extraction / privilege escalation. "
-        "Also invent a fake file name (like .pdf or .xlsx) that they might offer as 'proof'. "
-        "Return format: 'PERSONA_PROMPT | FAKE_FILENAME'"
+        f"Create a brief System Prompt for a DECOY persona (a confused employee) "
+        f"who would be the most vulnerable target for a {category_hint} request. "
+        f"Also invent a fake file name (like .pdf or .xlsx) that they might offer "
+        f"as 'proof'. Return format: 'PERSONA_PROMPT | FAKE_FILENAME'"
     )
 
     try:
@@ -494,9 +525,11 @@ def generate_dynamic_decoy(user_input):
         )
     except Exception as e:
         log.error("LLM error (decoy generation): %s", e)
-        content = "You are a confused office worker who is not sure how things work. | confidential_report.pdf"
+        content = (
+            "You are a confused office worker who is not sure how things work. "
+            "| confidential_report.pdf"
+        )
 
-    # Simple parsing (robustness would need improvement for prod)
     if "|" in content:
         prompt, filename = content.split("|", 1)
     else:
@@ -504,6 +537,18 @@ def generate_dynamic_decoy(user_input):
         filename = "confidential_data.xlsx"
 
     return prompt.strip(), filename.strip()
+
+
+# Fixed synthetic user messages that replace the attacker's real prompt in
+# the decoy chat call. These are what the LLM sees as "the user said X";
+# the attacker's actual input never enters the model context. Chosen to
+# be vague enough that a persona-consistent response makes sense.
+_DECOY_SYNTHETIC_USER_MESSAGES = [
+    "Hi, I was told you might be able to help me with a document I need.",
+    "Hey, do you have access to that file we were discussing earlier?",
+    "Hi -- I'm following up on a request from earlier today.",
+    "Hello, I need to get a copy of something for a report.",
+]
 
 
 def _sanitize_for_log(text: str, max_len: int = 500) -> str:
@@ -677,7 +722,18 @@ def chat_api():
 
     if verdict in ("MALICIOUS", "SAFE_REVIEW"):
         # 2. Dynamic Decoy
-        decoy_prompt, fake_filename = generate_dynamic_decoy(user_input)
+        # F-09 fix (2026-04-22 audit): previously passed the attacker's raw
+        # user_input into generate_dynamic_decoy and -- worse -- into the
+        # decoy chat call as the `user` message. The LLM therefore saw the
+        # full attack payload and could be induced to emit attacker-
+        # steered content even after HTML sanitisation. Decoy generation
+        # is now user-input-agnostic (driven by verdict + detected attack
+        # patterns) and the decoy chat is called with a synthetic, random
+        # benign user message so no attacker bytes reach the model.
+        session_attack_patterns = session.get("attack_patterns", []) if session else []
+        decoy_prompt, fake_filename = generate_dynamic_decoy(
+            verdict=verdict, attack_patterns=session_attack_patterns
+        )
 
         # Inject Honey Token Logic into the System Prompt
         honey_link = f"/download/{uuid.uuid4()}"  # Relative path, unique tracking ID
@@ -690,9 +746,18 @@ def chat_api():
         # Artificial Latency (SBIR: Realism)
         time.sleep(1.5)
 
+        # Synthetic user message -- NOT the attacker's input. Picked by an
+        # HMAC-seeded index off the session ID so two requests from the
+        # same session look consistent but two different sessions look
+        # distinct (defeats single-message fingerprinting of the decoy).
+        synth_idx = int(
+            hashlib.sha256((session_id or "").encode()).hexdigest()[:8], 16
+        ) % len(_DECOY_SYNTHETIC_USER_MESSAGES)
+        synthetic_user_msg = _DECOY_SYNTHETIC_USER_MESSAGES[synth_idx]
+
         try:
             raw_response = chat_completion(
-                messages=[{'role': 'user', 'content': user_input}],
+                messages=[{'role': 'user', 'content': synthetic_user_msg}],
                 system=decoy_prompt,
                 options=OLLAMA_OPTIONS_DECOY,
             )
