@@ -20,6 +20,7 @@ Usage:
 
 import datetime
 import logging
+import secrets
 import socketserver
 import threading
 from collections import deque
@@ -28,6 +29,76 @@ from dataclasses import dataclass, field
 from typing import Any
 
 log = logging.getLogger("sentinel.honey_services")
+
+
+# ---------------------------------------------------------------------------
+# Per-deployment fingerprint jitter (F-07, 2026-04-22 audit)
+# ---------------------------------------------------------------------------
+
+
+class _HoneyJitter:
+    """Per-deployment random values injected into honey service responses.
+
+    MED F-07 fix: every honey service previously returned the exact same
+    HTML/JSON for a given path across every Sentinel deployment worldwide.
+    Any attacker who had ever encountered one install -- or who scraped the
+    public repo -- could compute the response-body SHA-256 and fingerprint
+    every deployment in a single Shodan-style scan. Jitter values are
+    drawn once at topology-generation time from ``secrets`` (CSPRNG) and
+    baked into the response templates, so no two deployments share a
+    body hash even when the source is public.
+
+    The jitter is picked once per ``generate_topology()`` call and persists
+    for the life of that deployment. Every deployment gets a distinct set.
+    """
+
+    def __init__(self) -> None:
+        self.major = 3 + secrets.randbelow(3)
+        self.minor = secrets.randbelow(10)
+        self.patch = secrets.randbelow(30)
+        self.build = 1000 + secrets.randbelow(9000)
+        self.nginx_minor = 20 + secrets.randbelow(8)
+        self.nginx_patch = secrets.randbelow(5)
+        self.apache_patch = 40 + secrets.randbelow(20)
+        self.iis_major = 8 + secrets.randbelow(4)
+        self.uptime_s = 3600 + secrets.randbelow(180 * 86400)
+        self.tag_count = 5000 + secrets.randbelow(20000)
+        self.archive_tb = round(0.5 + secrets.randbelow(76) / 10, 1)
+        # Process values (ICS) -- picked from plausible operating ranges.
+        self.tt_value = round(60 + secrets.randbelow(300) / 10, 1)
+        self.pt_value = round(10 + secrets.randbelow(80) / 10, 1)
+        self.ft_value = round(400 + secrets.randbelow(200) / 10, 1)
+        self.lt_value = round(50 + secrets.randbelow(400) / 10, 1)
+        # PLC firmware
+        self.plc_major = 2 + secrets.randbelow(3)
+        self.plc_minor = secrets.randbelow(15)
+        self.plc_patch = secrets.randbelow(30)
+        # Moxa firmware
+        self.moxa_major = 3 + secrets.randbelow(3)
+        self.moxa_minor = secrets.randbelow(10)
+        self.moxa_patch = secrets.randbelow(15)
+        # Project revision
+        self.project_rev = 1 + secrets.randbelow(40)
+        # Last-update: within the last 30 minutes of boot, so the timestamp
+        # varies per install but still looks fresh.
+        now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        offset_s = secrets.randbelow(30 * 60)
+        self.last_update = (now - datetime.timedelta(seconds=offset_s)).strftime(
+            "%Y-%m-%d %H:%M:%S UTC"
+        )
+        self.connected_devices = 4 + secrets.randbelow(20)
+
+    @property
+    def version(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+    @property
+    def plc_firmware(self) -> str:
+        return f"V{self.plc_major}.{self.plc_minor}.{self.plc_patch}"
+
+    @property
+    def moxa_firmware(self) -> str:
+        return f"V{self.moxa_major}.{self.moxa_minor}.{self.moxa_patch}"
 
 
 # ---------------------------------------------------------------------------
@@ -350,11 +421,19 @@ class HoneyServiceRegistry:
 
         Returns:
             List of HoneyServiceConfig instances ready to be started.
+
+        Each call returns a topology with freshly-jittered version numbers,
+        uptime counters, process readings, and timestamps (see
+        :class:`_HoneyJitter` / MED F-07 fix). Two invocations in the same
+        process therefore produce different response bodies -- callers that
+        need the *same* fingerprint across a restart should persist the
+        resulting list rather than regenerate.
         """
+        jitter = _HoneyJitter()
         if profile == "enterprise":
-            return _enterprise_topology()
+            return _enterprise_topology(jitter)
         elif profile == "ics_scada":
-            return _ics_scada_topology()
+            return _ics_scada_topology(jitter)
         else:
             raise ValueError(f"Unknown profile: {profile!r}. Use 'enterprise' or 'ics_scada'.")
 
@@ -364,14 +443,14 @@ class HoneyServiceRegistry:
 # ---------------------------------------------------------------------------
 
 
-def _enterprise_topology() -> list[HoneyServiceConfig]:
+def _enterprise_topology(jitter: _HoneyJitter) -> list[HoneyServiceConfig]:
     """Enterprise IT topology: admin panels, webmail, LDAP, SMB-like."""
     return [
         HoneyServiceConfig(
             name="admin-panel-http",
             port=8080,
             protocol="http",
-            banner="Apache/2.4.54 (Ubuntu)",
+            banner=f"Apache/2.4.{jitter.apache_patch} (Ubuntu)",
             responses={
                 "/": (
                     "<html><head><title>Admin Console - Login</title></head>"
@@ -380,14 +459,18 @@ def _enterprise_topology() -> list[HoneyServiceConfig]:
                     "<label>Username:</label><input name='user'><br>"
                     "<label>Password:</label><input type='password' name='pass'><br>"
                     "<button type='submit'>Login</button></form>"
-                    "<p class='version'>v4.2.1-build.1847</p></body></html>"
+                    f"<p class='version'>v{jitter.version}-build.{jitter.build}"
+                    "</p></body></html>"
                 ),
                 "/login": (
                     "<html><body><h2>Authentication Failed</h2>"
                     "<p>Invalid credentials. This attempt has been logged.</p>"
                     "<a href='/'>Back to Login</a></body></html>"
                 ),
-                "/api/v1/status": '{"status":"ok","uptime":483291,"version":"4.2.1"}',
+                "/api/v1/status": (
+                    f'{{"status":"ok","uptime":{jitter.uptime_s},'
+                    f'"version":"{jitter.version}"}}'
+                ),
                 "default": "<html><body><h1>404 Not Found</h1></body></html>",
             },
         ),
@@ -395,7 +478,7 @@ def _enterprise_topology() -> list[HoneyServiceConfig]:
             name="webmail-http",
             port=8443,
             protocol="http",
-            banner="nginx/1.24.0",
+            banner=f"nginx/1.{jitter.nginx_minor}.{jitter.nginx_patch}",
             responses={
                 "/": (
                     "<html><head><title>Webmail - Secure Access</title></head>"
@@ -412,7 +495,7 @@ def _enterprise_topology() -> list[HoneyServiceConfig]:
             name="ldap-directory",
             port=8389,
             protocol="http",
-            banner="OpenLDAP/2.5.16",
+            banner=f"OpenLDAP/2.{jitter.minor}.{jitter.patch}",
             responses={
                 "/": (
                     "<html><head><title>LDAP Browser</title></head>"
@@ -427,7 +510,7 @@ def _enterprise_topology() -> list[HoneyServiceConfig]:
             name="file-share-smb",
             port=8445,
             protocol="http",
-            banner="Microsoft-IIS/10.0",
+            banner=f"Microsoft-IIS/{jitter.iis_major}.0",
             responses={
                 "/": (
                     "<html><head><title>File Server</title></head>"
@@ -443,32 +526,39 @@ def _enterprise_topology() -> list[HoneyServiceConfig]:
     ]
 
 
-def _ics_scada_topology() -> list[HoneyServiceConfig]:
+def _ics_scada_topology(jitter: _HoneyJitter) -> list[HoneyServiceConfig]:
     """ICS/SCADA topology: HMI panels, engineering workstation, historian."""
     return [
         HoneyServiceConfig(
             name="hmi-web-panel",
             port=8080,
             protocol="http",
-            banner="lighttpd/1.4.64",
+            banner=f"lighttpd/1.4.{jitter.apache_patch}",
             responses={
                 "/": (
                     "<html><head><title>Process Control HMI</title></head>"
                     "<body><h1>Plant Overview - Unit 3</h1>"
                     "<table border='1'>"
                     "<tr><th>Tag</th><th>Value</th><th>Unit</th><th>Status</th></tr>"
-                    "<tr><td>TT-301</td><td>72.4</td><td>degC</td><td>NORMAL</td></tr>"
-                    "<tr><td>PT-302</td><td>14.7</td><td>PSI</td><td>NORMAL</td></tr>"
-                    "<tr><td>FT-303</td><td>450.2</td><td>GPM</td><td>NORMAL</td></tr>"
-                    "<tr><td>LT-304</td><td>68.1</td><td>%</td><td>NORMAL</td></tr>"
+                    f"<tr><td>TT-301</td><td>{jitter.tt_value}</td>"
+                    "<td>degC</td><td>NORMAL</td></tr>"
+                    f"<tr><td>PT-302</td><td>{jitter.pt_value}</td>"
+                    "<td>PSI</td><td>NORMAL</td></tr>"
+                    f"<tr><td>FT-303</td><td>{jitter.ft_value}</td>"
+                    "<td>GPM</td><td>NORMAL</td></tr>"
+                    f"<tr><td>LT-304</td><td>{jitter.lt_value}</td>"
+                    "<td>%</td><td>NORMAL</td></tr>"
                     "</table>"
-                    "<p>Last update: 2026-03-27 14:30:00 UTC</p></body></html>"
+                    f"<p>Last update: {jitter.last_update}</p></body></html>"
                 ),
                 "/api/tags": (
                     '{"tags":['
-                    '{"name":"TT-301","value":72.4,"unit":"degC","alarm":false},'
-                    '{"name":"PT-302","value":14.7,"unit":"PSI","alarm":false},'
-                    '{"name":"FT-303","value":450.2,"unit":"GPM","alarm":false}'
+                    f'{{"name":"TT-301","value":{jitter.tt_value},'
+                    '"unit":"degC","alarm":false},'
+                    f'{{"name":"PT-302","value":{jitter.pt_value},'
+                    '"unit":"PSI","alarm":false},'
+                    f'{{"name":"FT-303","value":{jitter.ft_value},'
+                    '"unit":"GPM","alarm":false}'
                     "]}"
                 ),
                 "default": "<html><body><h1>Access Restricted</h1></body></html>",
@@ -478,14 +568,14 @@ def _ics_scada_topology() -> list[HoneyServiceConfig]:
             name="engineering-workstation",
             port=8443,
             protocol="http",
-            banner="Apache/2.4.41",
+            banner=f"Apache/2.4.{jitter.apache_patch}",
             responses={
                 "/": (
                     "<html><head><title>EWS - Engineering Workstation</title></head>"
                     "<body><h1>PLC Programming Interface</h1>"
                     "<p>Controller: Siemens S7-1500 (CPU 1516-3 PN/DP)</p>"
-                    "<p>Firmware: V2.9.7</p>"
-                    "<p>Project: WaterTreatment_Unit3_Rev12</p>"
+                    f"<p>Firmware: {jitter.plc_firmware}</p>"
+                    f"<p>Project: WaterTreatment_Unit3_Rev{jitter.project_rev}</p>"
                     "<p>Status: RUN</p>"
                     "<form><button disabled>Connect (Auth Required)</button></form></body></html>"
                 ),
@@ -496,13 +586,13 @@ def _ics_scada_topology() -> list[HoneyServiceConfig]:
             name="historian-database",
             port=8502,
             protocol="http",
-            banner="OSIsoft PI Web API/2021",
+            banner=f"OSIsoft PI Web API/{2020 + jitter.major}",
             responses={
                 "/": (
                     "<html><head><title>Process Historian</title></head>"
                     "<body><h1>PI Historian - Web Interface</h1>"
-                    "<p>Data Points: 12,847 active tags</p>"
-                    "<p>Archive: 2.3 TB (2019-present)</p>"
+                    f"<p>Data Points: {jitter.tag_count:,} active tags</p>"
+                    f"<p>Archive: {jitter.archive_tb} TB (2019-present)</p>"
                     "<p>API: /piwebapi/</p></body></html>"
                 ),
                 "/piwebapi/": (
@@ -517,15 +607,15 @@ def _ics_scada_topology() -> list[HoneyServiceConfig]:
             name="modbus-gateway-web",
             port=8503,
             protocol="http",
-            banner="Moxa MGate/3.5",
+            banner=f"Moxa MGate/{jitter.moxa_major}.{jitter.moxa_minor}",
             responses={
                 "/": (
                     "<html><head><title>Modbus Gateway</title></head>"
                     "<body><h1>Moxa MGate MB3170</h1>"
                     "<p>Serial Port 1: RS-485, 9600 baud</p>"
                     "<p>Modbus TCP: Port 502 (active)</p>"
-                    "<p>Connected Devices: 8</p>"
-                    "<p>Firmware: V3.5.2</p></body></html>"
+                    f"<p>Connected Devices: {jitter.connected_devices}</p>"
+                    f"<p>Firmware: {jitter.moxa_firmware}</p></body></html>"
                 ),
                 "default": "<html><body><h1>Login Required</h1></body></html>",
             },

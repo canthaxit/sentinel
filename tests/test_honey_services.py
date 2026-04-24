@@ -189,3 +189,54 @@ class TestTopologyGeneration:
     def test_unknown_profile_raises(self):
         with pytest.raises(ValueError, match="Unknown profile"):
             HoneyServiceRegistry.generate_topology("nonexistent")
+
+
+class TestFingerprintJitter:
+    """F-07 regression (2026-04-22 audit): two independently-generated
+    topologies must not share a response-body fingerprint. Previously every
+    Sentinel deployment worldwide returned byte-identical bodies, so a
+    single Shodan-style scan could fingerprint all installs in one pass."""
+
+    @staticmethod
+    def _response_fingerprint(configs):
+        """Flatten every response body across every service for hashing."""
+        import hashlib
+
+        h = hashlib.sha256()
+        for cfg in configs:
+            h.update(cfg.banner.encode())
+            for path in sorted(cfg.responses.keys()):
+                h.update(path.encode())
+                h.update(cfg.responses[path].encode())
+        return h.hexdigest()
+
+    def test_enterprise_topology_has_distinct_fingerprint_per_generation(self):
+        a = HoneyServiceRegistry.generate_topology("enterprise")
+        b = HoneyServiceRegistry.generate_topology("enterprise")
+        assert self._response_fingerprint(a) != self._response_fingerprint(b)
+
+    def test_ics_scada_topology_has_distinct_fingerprint_per_generation(self):
+        a = HoneyServiceRegistry.generate_topology("ics_scada")
+        b = HoneyServiceRegistry.generate_topology("ics_scada")
+        assert self._response_fingerprint(a) != self._response_fingerprint(b)
+
+    def test_jittered_values_look_plausible(self):
+        """Version strings and JSON bodies must still parse cleanly; the
+        jitter must not produce syntactically broken responses."""
+        import json
+
+        configs = HoneyServiceRegistry.generate_topology("enterprise")
+        admin = next(c for c in configs if c.name == "admin-panel-http")
+        assert admin.banner.startswith("Apache/2.4.")
+        status = json.loads(admin.responses["/api/v1/status"])
+        assert status["status"] == "ok"
+        assert isinstance(status["uptime"], int) and status["uptime"] > 0
+        assert "." in status["version"]
+
+    def test_same_topology_object_is_stable_across_reads(self):
+        """Within one generated topology, response bodies are immutable --
+        only a fresh generate_topology() call should re-jitter."""
+        configs = HoneyServiceRegistry.generate_topology("enterprise")
+        snapshot_a = self._response_fingerprint(configs)
+        snapshot_b = self._response_fingerprint(configs)
+        assert snapshot_a == snapshot_b
