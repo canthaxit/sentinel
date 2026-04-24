@@ -7,6 +7,8 @@ Targets:
 - Markdown injection (ATK-032)
 - CSV formula injection (ATK-033)
 """
+from typing import Any
+
 
 import html
 import logging
@@ -19,7 +21,7 @@ log = logging.getLogger(__name__)
 MAX_SANITIZE_LENGTH = 50000
 
 
-def sanitize_input(user_input: str) -> tuple:
+def sanitize_input(user_input: str) -> tuple[Any, ...]:
     """
     Sanitize user input to prevent markup-based injection attacks.
 

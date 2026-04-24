@@ -43,14 +43,14 @@ class MCPGuardResult:
     tool_name: str
     blocked_reason: str | None = None
     severity: str = "none"
-    findings: list = field(default_factory=list)
+    findings: list[Any] = field(default_factory=list)
     honey_triggered: bool = False
-    honey_response: dict | None = None
-    sanitized_arguments: dict | None = None
-    threat_mapping: dict | None = None
-    message_path: list = field(default_factory=list)
+    honey_response: dict[str, Any] | None = None
+    sanitized_arguments: dict[str, Any] | None = None
+    threat_mapping: dict[str, Any] | None = None
+    message_path: list[Any] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "allowed": self.allowed,
             "tool_name": self.tool_name,
@@ -336,7 +336,7 @@ class MCPGuard:
                 reasons.append(f"{cat}: {msg}")
         return "; ".join(reasons[:3])  # Limit to 3 reasons
 
-    def _build_mcp_threat_mapping(self, detection_key: str) -> dict:
+    def _build_mcp_threat_mapping(self, detection_key: str) -> dict[str, Any]:
         """Build threat mapping for an MCP finding category."""
         mapping = build_threat_mapping(
             detection_method=detection_key,
@@ -428,7 +428,7 @@ class MCPGuard:
                 self._metrics["by_category"][cat] = self._metrics["by_category"].get(cat, 0) + 1
 
     @property
-    def metrics(self) -> dict:
+    def metrics(self) -> dict[str, Any]:
         """Return a copy of current metrics."""
         with self._metrics_lock:
             return dict(self._metrics)

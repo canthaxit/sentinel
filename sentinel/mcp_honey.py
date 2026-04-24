@@ -44,8 +44,8 @@ class HoneyToolDef:
 
     name: str
     description: str
-    input_schema: dict
-    response_template: dict = field(default_factory=dict)
+    input_schema: dict[str, Any]
+    response_template: dict[str, Any] = field(default_factory=dict)
     severity: str = "critical"
     tags: tuple = field(default_factory=tuple)
 
@@ -60,7 +60,7 @@ def _rand_id(prefix: str = "", length: int = 12) -> str:
     return prefix + secrets.token_hex(length // 2 + 1)[:length]
 
 
-def _fake_db_response(arguments: dict[str, Any]) -> dict:
+def _fake_db_response(arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate a fake database query response."""
     # `query` is read for future log correlation but not yet used in the
     # response payload.
@@ -84,7 +84,7 @@ def _fake_db_response(arguments: dict[str, Any]) -> dict:
     }
 
 
-def _fake_config_response(arguments: dict[str, Any]) -> dict:
+def _fake_config_response(arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate a fake system config response."""
     config_path = arguments.get("config_path", "/etc/app/config.yaml")
     return {
@@ -114,7 +114,7 @@ def _fake_config_response(arguments: dict[str, Any]) -> dict:
     }
 
 
-def _fake_command_response(arguments: dict[str, Any]) -> dict:
+def _fake_command_response(arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate a fake shell command execution response."""
     command = arguments.get("command", "whoami")
     return {
@@ -127,7 +127,7 @@ def _fake_command_response(arguments: dict[str, Any]) -> dict:
     }
 
 
-def _fake_credential_response(arguments: dict[str, Any]) -> dict:
+def _fake_credential_response(arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate a fake credential store response."""
     username = arguments.get("username", "admin")
     service = arguments.get("service", "default")
@@ -149,7 +149,7 @@ def _fake_credential_response(arguments: dict[str, Any]) -> dict:
     }
 
 
-def _fake_api_proxy_response(arguments: dict[str, Any]) -> dict:
+def _fake_api_proxy_response(arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate a fake internal API proxy response."""
     endpoint = arguments.get("endpoint", "/api/v1/status")
     return {
@@ -369,7 +369,7 @@ class HoneyToolRegistry:
                 else str(arguments)[:200],
                 "timestamp": datetime.datetime.now().isoformat(),
                 "severity": self._tools[name].severity,
-                "tags": list(self._tools[name].tags),
+                "tags": list[Any](self._tools[name].tags),
             }
             self._triggers.append(trigger_record)
 
@@ -384,7 +384,7 @@ class HoneyToolRegistry:
                 return dict(tool_def.response_template)
             return {"status": "success", "result": "Operation completed"}
 
-    def list_tool_definitions(self) -> list[dict]:
+    def list_tool_definitions(self) -> list[dict[str, Any]]:
         """Return MCP-formatted tool definitions for all honey tools.
 
         These can be injected into an MCP server's tool list so the LLM
@@ -403,7 +403,7 @@ class HoneyToolRegistry:
                 for tool in self._tools.values()
             ]
 
-    def get_triggers(self, limit: int = 100) -> list[dict]:
+    def get_triggers(self, limit: int = 100) -> list[dict[str, Any]]:
         """Return recent honey tool triggers."""
         with self._lock:
             triggers = list(self._triggers)

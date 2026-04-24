@@ -29,6 +29,8 @@ Configure in Claude Desktop (claude_desktop_config.json):
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import logging
 import sys
@@ -109,7 +111,7 @@ _MCP_MAX_INPUT_LENGTH = 10000
 
 
 @mcp.tool()
-def analyze_message(message: str, session_id: str = "mcp_default") -> dict:
+def analyze_message(message: str, session_id: str = "mcp_default") -> dict[str, Any]:
     """Analyze a user message for prompt injection, jailbreak, or adversarial attacks.
 
     Args:
@@ -132,7 +134,7 @@ def analyze_message(message: str, session_id: str = "mcp_default") -> dict:
 
 
 @mcp.tool()
-def scan_output(text: str) -> dict:
+def scan_output(text: str) -> dict[str, Any]:
     """Scan LLM output text for secrets, PII, or other data leaks.
 
     Args:
@@ -151,7 +153,7 @@ def validate_tool_call(
     tool_name: str,
     arguments: str,
     session_id: str = "mcp_default",
-) -> dict:
+) -> dict[str, Any]:
     """Validate a tool call for command injection, path traversal, SSRF, and other attacks.
 
     Args:

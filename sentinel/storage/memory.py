@@ -48,7 +48,7 @@ class MemoryBackend(StorageBackend):
 
     def list_sessions(self) -> dict[str, dict[str, Any]]:
         with self._lock:
-            return {sid: dict(s) for sid, s in self._sessions.items()}
+            return {sid: dict[str, Any](s) for sid, s in self._sessions.items()}
 
     # -- Shield Detections --
 

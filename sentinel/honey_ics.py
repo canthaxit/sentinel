@@ -462,7 +462,7 @@ class HoneyModbusServer:
         with self._register_lock:
             self._registers[address] = value & 0xFFFF
 
-    def get_interactions(self, limit: int = 100) -> list[dict]:
+    def get_interactions(self, limit: int = 100) -> list[dict[str, Any]]:
         """Return recent MODBUS interaction events."""
         with self._log_lock:
             items = list(self._interaction_log)

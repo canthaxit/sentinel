@@ -9,6 +9,8 @@ Three detection layers:
   2. Input drift  - OOV token rate against TF-IDF vocabulary
   3. Concept drift - PSI (Population Stability Index) on score bins
 """
+from typing import Any
+
 
 import json
 import logging
@@ -245,7 +247,7 @@ class DriftMonitor:
                     "count_in_window": tc_count,
                     "threshold": self._tool_call_threshold,
                     "alert": tc_alert,
-                    "top_tools": dict(
+                    "top_tools": dict[str, Any](
                         sorted(
                             self._tool_call_counts.items(),
                             key=lambda x: x[1],

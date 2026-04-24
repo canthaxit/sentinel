@@ -3,6 +3,8 @@ Sentinel - Pre-Filter
 Blocks obvious attacks before expensive ML/LLM processing.
 Achieves ~10ms blocking vs ~15s LLM judgment (1,550x speedup).
 """
+from typing import Any
+
 
 import logging
 import unicodedata
@@ -12,7 +14,7 @@ from . import config
 log = logging.getLogger(__name__)
 
 
-def pre_filter_check(user_input: str, session: dict, sanitizations: list | None = None) -> tuple:
+def pre_filter_check(user_input: str, session: dict[str, Any], sanitizations: list[Any] | None = None) -> tuple[Any, ...]:
     """
     Pre-filter to block obvious attacks before expensive LLM judgment.
 

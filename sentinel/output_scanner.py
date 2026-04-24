@@ -12,6 +12,8 @@ Usage:
     if result.blocked:
         print(f"Blocked: {result.block_reason}")
 """
+from typing import Any
+
 
 import dataclasses
 
@@ -30,7 +32,7 @@ class OutputScanResult:
         self.blocked = blocked
         self.block_reason = block_reason
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "findings": [dataclasses.asdict(f) for f in self.findings],
             "blocked": self.blocked,

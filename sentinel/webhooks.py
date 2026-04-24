@@ -174,7 +174,7 @@ class TeamsNotifier(WebhookNotifier):
         if reason:
             facts.append({"title": "Escalation", "value": reason})
 
-        body: list = [
+        body: list[Any] = [
             {
                 "type": "TextBlock",
                 "text": f"Sentinel -- {title}",

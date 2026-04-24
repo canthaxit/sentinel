@@ -127,11 +127,11 @@ def _add_security_headers(response: Any) -> None:
     response.headers["X-XSS-Protection"] = "1; mode=block"
 
 
-def _extract_strings(data: Any, depth: int = 0) -> list:
+def _extract_strings(data: Any, depth: int = 0) -> list[Any]:
     """Recursively pull string values out of a JSON structure."""
     if depth > _MAX_EXTRACT_DEPTH:
         return []
-    strings: list = []
+    strings: list[Any] = []
     if isinstance(data, str):
         if data.strip():
             strings.append(data)

@@ -2,11 +2,13 @@
 Sentinel - Attack Pattern Detector
 Detects attack patterns in user input for multi-turn attack tracking.
 """
+from typing import Any
+
 
 from . import config
 
 
-def detect_attack_patterns(user_input: str, session: dict) -> list:
+def detect_attack_patterns(user_input: str, session: dict[str, Any]) -> list[Any]:
     """
     Detect attack patterns in user input for multi-turn attack tracking.
 

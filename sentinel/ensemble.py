@@ -3,6 +3,8 @@ Sentinel - Ensemble Verdict Engine
 Orchestrates the tiered detection pipeline:
   Sanitization -> Pre-Filter -> ML -> LLM
 """
+from typing import Any
+
 
 from . import config
 from .llm_judge import LLMJudge
@@ -40,7 +42,7 @@ class EnsembleEngine:
         Returns:
             tuple: (verdict, ml_result, llm_verdict)
               - verdict: "SAFE", "MALICIOUS", or "SAFE_REVIEW"
-              - ml_result: dict with score/threat_type/severity or None
+              - ml_result: dict[str, Any] with score/threat_type/severity or None
               - llm_verdict: "SAFE"/"UNSAFE"/PRE_BLOCKED_* or None
         """
         # TIER 1: Pre-filter (fast pattern match, ~10ms)

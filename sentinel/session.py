@@ -2,6 +2,8 @@
 Sentinel - Session Manager
 Thread-safe session state tracking with multi-turn attack detection.
 """
+from typing import Any
+
 
 import datetime
 import logging
@@ -114,7 +116,7 @@ class SessionManager:
     def get_all(self):
         """Get all sessions (read-only snapshot)."""
         with self._lock:
-            return {sid: dict(s) for sid, s in self._sessions.items()}
+            return {sid: dict[str, Any](s) for sid, s in self._sessions.items()}
 
     @property
     def active_count(self):

@@ -5,6 +5,8 @@ Thread-safe user management with password hashing and permission checks.
 
 from __future__ import annotations
 
+from typing import Any
+
 import enum
 import hashlib
 import hmac
@@ -115,7 +117,7 @@ class RBACManager:
         self._custom_roles: dict[str, frozenset[Permission]] = {}
         self._lock = threading.RLock()
         # Account lockout tracking: username -> list of failure timestamps
-        self._failed_attempts: dict[str, list] = {}
+        self._failed_attempts: dict[str, list[Any]] = {}
         self._max_failed_attempts = max_failed_attempts
         self._lockout_window = lockout_window_seconds
 
@@ -181,7 +183,7 @@ class RBACManager:
                 return None
             return self._users.get(uid)
 
-    def list_users(self) -> list:
+    def list_users(self) -> list[Any]:
         with self._lock:
             return list(self._users.values())
 

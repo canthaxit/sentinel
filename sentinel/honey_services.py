@@ -336,7 +336,7 @@ class HoneyServiceRegistry:
         self._configs: dict[str, HoneyServiceConfig] = {}
         self._triggers: deque = deque(maxlen=max_triggers)
 
-    def _trigger_callback(self, event: dict) -> None:
+    def _trigger_callback(self, event: dict[str, Any]) -> None:
         """Central callback for all honey service triggers."""
         with self._lock:
             self._triggers.append(event)
@@ -392,7 +392,7 @@ class HoneyServiceRegistry:
                 for cfg in self._configs.values()
             ]
 
-    def get_triggers(self, limit: int = 100) -> list[dict]:
+    def get_triggers(self, limit: int = 100) -> list[dict[str, Any]]:
         """Return recent trigger events."""
         with self._lock:
             triggers = list(self._triggers)

@@ -92,7 +92,7 @@ class TenantManager:
         config_overrides: dict[str, Any] | None = None,
         rate_limit: int | None = None,
         tags: list[str] | None = None,
-    ) -> tuple:
+    ) -> tuple[Any, ...]:
         """Create a tenant and return (Tenant, plaintext_api_key).
 
         The plaintext key is returned exactly once.  Only the hash is stored.

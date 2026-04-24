@@ -16,6 +16,8 @@ Usage:
     logger.log_detection(verdict="MALICIOUS", user_input="...", ...)
     # Writes CEF line to configured output (file, syslog, or stdout)
 """
+from typing import Any
+
 
 import datetime
 import logging
@@ -185,7 +187,7 @@ class CEFLogger:
             sig_id: Signature/event ID
             name: Event name
             severity: 0-10 severity
-            extensions: dict of CEF extension key=value pairs
+            extensions: dict[str, Any] of CEF extension key=value pairs
         """
         # Clamp severity to 0-10
         severity = max(0, min(10, severity))

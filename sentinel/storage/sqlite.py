@@ -295,7 +295,7 @@ class SQLiteBackend(StorageBackend):
             filters["session_id"] = session_id
 
         clauses = []
-        params: list = []
+        params: list[Any] = []
         for col, val in filters.items():
             if col not in _ALLOWED_FILTERS:
                 continue
@@ -457,7 +457,7 @@ class SQLiteBackend(StorageBackend):
         limit: int = 200,
     ) -> list[dict[str, Any]]:
         clauses = []
-        params: list = []
+        params: list[Any] = []
         if session_id:
             clauses.append("session_id = ?")
             params.append(session_id)
@@ -708,8 +708,8 @@ class SQLiteBackend(StorageBackend):
         source: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        clauses: list = []
-        params: list = []
+        clauses: list[Any] = []
+        params: list[Any] = []
         if ioc_type:
             clauses.append("type = ?")
             params.append(ioc_type)
@@ -797,8 +797,8 @@ class SQLiteBackend(StorageBackend):
         allowed: bool | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
-        clauses: list = []
-        params: list = []
+        clauses: list[Any] = []
+        params: list[Any] = []
         if tool_name:
             clauses.append("tool_name = ?")
             params.append(tool_name)
