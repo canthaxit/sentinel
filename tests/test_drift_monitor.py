@@ -98,9 +98,15 @@ class TestDriftChecks:
         assert result["oov_rate"]["alert"] is True
 
     def test_psi_stable(self):
-        ref = np.random.uniform(0, 1, 200).tolist()
+        # Flake fix: the two uniform-distribution samples produce a PSI that
+        # is usually but not always under 0.25 -- occasionally (roughly
+        # 1-in-50 runs) the random draws diverge enough to trip the
+        # threshold. Seed the RNG for deterministic, reproducible draws so
+        # the test measures the PSI computation, not the RNG tail.
+        rng = np.random.default_rng(seed=12345)
+        ref = rng.uniform(0, 1, 200).tolist()
         dm = DriftMonitor(window_size=200, reference_scores=ref)
-        for s in np.random.uniform(0, 1, 100):
+        for s in rng.uniform(0, 1, 100):
             dm.record(float(s))
         result = dm.check()
         if "psi" in result:
